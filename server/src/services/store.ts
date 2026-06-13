@@ -1,6 +1,7 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { boards as seedBoards, users as seedUsers, notifications as seedNotifications } from '../../../src/data/boards';
 import type { Board, Notification, Task, User } from '../../../src/data/boards';
+import { hashPassword, verifyPassword } from './passwords';
 
 type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
 
@@ -27,6 +28,16 @@ export interface TagDto {
   workspaceId: string;
   name: string;
   color: string;
+}
+
+export interface AuthResultDto {
+  user: ApiUser;
+  accessTokenUserId: string;
+}
+
+export interface PasswordResetDto {
+  resetToken: string;
+  expiresAt: string;
 }
 
 export interface AutomationRuleDto {
@@ -60,6 +71,10 @@ export class InMemoryStore {
     email: toEmail(user.name),
     role: index === 0 ? 'admin' : 'member',
   }));
+  private passwordHashes: Record<string, string> = Object.fromEntries(
+    this.users.map((user) => [user.id, hashPassword('demo-password')]),
+  );
+  private resetTokens = new Map<string, { userId: string; expiresAt: Date }>();
 
   private boards: Board[] = clone(seedBoards);
   private notifications: Notification[] = clone(seedNotifications);
@@ -115,6 +130,54 @@ export class InMemoryStore {
     return this.users.find((user) => user.email.toLowerCase() === email.toLowerCase());
   }
 
+  validateCredentials(email: string, password: string) {
+    const user = this.findUserByEmail(email);
+    if (!user || !verifyPassword(password, this.passwordHashes[user.id])) return null;
+    return user;
+  }
+
+  register(input: { name: string; email: string; password: string; workspaceName?: string }) {
+    const existing = this.findUserByEmail(input.email);
+    if (existing) return null;
+    const user: ApiUser = {
+      id: randomUUID(),
+      name: input.name,
+      email: input.email.toLowerCase(),
+      avatar: '',
+      initials: input.name
+        .split(/[.\s_-]+/)
+        .map((part) => part[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase(),
+      color: '#579BFC',
+      role: 'admin',
+    };
+    this.users.push(user);
+    this.passwordHashes[user.id] = hashPassword(input.password);
+    this.preferences[user.id] = { emailNotifications: true, pushNotifications: true, theme: 'system' };
+    return user;
+  }
+
+  createPasswordResetToken(email: string) {
+    const user = this.findUserByEmail(email);
+    if (!user) return null;
+    const resetToken = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 30);
+    this.resetTokens.set(resetToken, { userId: user.id, expiresAt });
+    return { resetToken, expiresAt: expiresAt.toISOString() };
+  }
+
+  resetPassword(input: { token: string; password: string }) {
+    const entry = this.resetTokens.get(input.token);
+    if (!entry || entry.expiresAt.getTime() < Date.now()) return null;
+    const user = this.users.find((candidate) => candidate.id === entry.userId);
+    if (!user) return null;
+    this.passwordHashes[user.id] = hashPassword(input.password);
+    this.resetTokens.delete(input.token);
+    return user;
+  }
+
   listWorkspaces() {
     return [this.workspace];
   }
@@ -148,6 +211,7 @@ export class InMemoryStore {
       role: input.role ?? 'member',
     };
     this.users.push(user);
+    this.passwordHashes[user.id] = hashPassword('demo-password');
     this.preferences[user.id] = { emailNotifications: true, pushNotifications: true, theme: 'system' };
     return user;
   }

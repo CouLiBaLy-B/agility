@@ -31,6 +31,52 @@ describe('Agility API', () => {
     expect(response.body.workspaces[0].id).toBe('w1');
   });
 
+  it('registers a new account', async () => {
+    const response = await request(app)
+      .post('/auth/register')
+      .send({
+        name: 'New User',
+        email: 'new.user@company.com',
+        password: 'new-password',
+        workspaceName: 'New Workspace',
+      })
+      .expect(201);
+
+    expect(response.body.accessToken).toEqual(expect.any(String));
+    expect(response.body.user.email).toBe('new.user@company.com');
+  });
+
+  it('generates a reset token and resets password', async () => {
+    await request(app)
+      .post('/auth/register')
+      .send({
+        name: 'Reset User',
+        email: 'reset.user@company.com',
+        password: 'old-password',
+        workspaceName: 'Reset Workspace',
+      })
+      .expect(201);
+
+    const forgot = await request(app)
+      .post('/auth/forgot-password')
+      .send({ email: 'reset.user@company.com' })
+      .expect(200);
+
+    expect(forgot.body.resetToken).toEqual(expect.any(String));
+
+    await request(app)
+      .post('/auth/reset-password')
+      .send({ token: forgot.body.resetToken, password: 'updated-password' })
+      .expect(200);
+
+    const loginResponse = await request(app)
+      .post('/auth/login')
+      .send({ email: 'reset.user@company.com', password: 'updated-password' })
+      .expect(200);
+
+    expect(loginResponse.body.accessToken).toEqual(expect.any(String));
+  });
+
   it('lists seeded boards with tasks', async () => {
     const token = await login();
     const response = await request(app)

@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { Task, Board } from './data/boards';
 import { boards as initialBoards, users as initialUsers } from './data/boards';
 import { isApiEnabled } from './api/client';
-import { getMe, login } from './api/auth';
+import { forgotPassword, getMe, login, register, resetPassword } from './api/auth';
 import type { WorkspaceSummary } from './api/auth';
 import { createBoard as createBoardApi, createTask as createTaskApi, listBoards, updateTask as updateTaskApi } from './api/boards';
 import { unreadCount } from './api/notifications';
@@ -110,6 +110,56 @@ export default function App() {
         console.warn('Login failed.', error);
         localStorage.removeItem('agility.accessToken');
         setAuthError('Unable to sign in. Check the API status and your credentials.');
+        setAuthStatus('unauthenticated');
+      }
+    },
+    [loadRemoteData],
+  );
+
+  const handleRegister = useCallback(
+    async (input: { name: string; email: string; password: string; workspaceName?: string }) => {
+      setAuthStatus('checking');
+      setAuthError(null);
+      try {
+        await register(input);
+        await loadRemoteData();
+        setAuthStatus('authenticated');
+      } catch (error) {
+        console.warn('Registration failed.', error);
+        localStorage.removeItem('agility.accessToken');
+        setAuthError('Unable to create the account. The email may already be registered.');
+        setAuthStatus('unauthenticated');
+      }
+    },
+    [loadRemoteData],
+  );
+
+  const handleForgotPassword = useCallback(async (email: string) => {
+    setAuthStatus('checking');
+    setAuthError(null);
+    try {
+      return await forgotPassword(email);
+    } catch (error) {
+      console.warn('Forgot password failed.', error);
+      setAuthError('Unable to start password recovery.');
+      throw error;
+    } finally {
+      setAuthStatus('unauthenticated');
+    }
+  }, []);
+
+  const handleResetPassword = useCallback(
+    async (token: string, password: string) => {
+      setAuthStatus('checking');
+      setAuthError(null);
+      try {
+        await resetPassword(token, password);
+        await loadRemoteData();
+        setAuthStatus('authenticated');
+      } catch (error) {
+        console.warn('Reset password failed.', error);
+        localStorage.removeItem('agility.accessToken');
+        setAuthError('Unable to reset password. The token may be invalid or expired.');
         setAuthStatus('unauthenticated');
       }
     },
@@ -283,6 +333,9 @@ export default function App() {
     return (
       <LoginScreen
         onLogin={handleLogin}
+        onRegister={handleRegister}
+        onForgotPassword={handleForgotPassword}
+        onResetPassword={handleResetPassword}
         isLoading={authStatus === 'checking'}
         error={authError}
       />

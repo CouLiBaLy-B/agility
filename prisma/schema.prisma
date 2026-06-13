@@ -48,6 +48,7 @@ model User {
   comments     Comment[]
   notifications Notification[]
   preferences  UserPreference?
+  resetTokens   PasswordResetToken[]
   auditLogs     AuditLog[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
@@ -59,6 +60,18 @@ model UserPreference {
   emailNotifications Boolean @default(true)
   pushNotifications  Boolean @default(true)
   theme              String  @default("system")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
 }
 
 model Workspace {

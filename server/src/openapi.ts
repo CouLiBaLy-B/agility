@@ -15,6 +15,9 @@ export const openApiDocument = {
   paths: {
     '/health': { get: { security: [], responses: { '200': { description: 'API health' } } } },
     '/auth/login': { post: { security: [], responses: { '200': { description: 'JWT session' } } } },
+    '/auth/register': { post: { security: [], responses: { '201': { description: 'Created account and JWT session' } } } },
+    '/auth/forgot-password': { post: { security: [], responses: { '200': { description: 'Password reset request accepted' } } } },
+    '/auth/reset-password': { post: { security: [], responses: { '200': { description: 'Password reset and JWT session' } } } },
     '/auth/me': { get: { responses: { '200': { description: 'Current user and workspaces' } } } },
     '/workspaces': { get: { responses: { '200': { description: 'Accessible workspaces' } } } },
     '/workspaces/{workspaceId}': { get: { responses: { '200': { description: 'Workspace detail' } } } },

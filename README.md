@@ -14,12 +14,12 @@ Agility is a project and task management application with a React frontend and a
 - Inbox with read/unread notification synchronization.
 - People/team page.
 - Settings page with persisted profile and user preferences.
-- Login screen when API mode is enabled.
+- Authentication screens when API mode is enabled: sign in, register, forgot password, and reset password.
 - API fallback mode to preserve the original mock-only behavior.
 
 ### Backend API
 
-- JWT authentication MVP.
+- JWT authentication MVP with register, forgot password, and reset password flows.
 - Workspaces and members.
 - Boards and tasks.
 - Subtasks and comments.
@@ -137,7 +137,7 @@ Email: sarah.chen@company.com
 Password: demo-password
 ```
 
-The current auth implementation is an MVP and accepts the seeded demo account.
+The auth UI includes sign in, account creation, forgot password, and reset password. In development, forgot password returns a reset token directly so the flow can be tested without an email provider. The current auth implementation is still an MVP and should be hardened before production.
 
 ## Quick start — API with PostgreSQL/Prisma
 
@@ -201,6 +201,9 @@ GET http://localhost:3000/docs
 
 ```text
 POST /auth/login
+POST /auth/register
+POST /auth/forgot-password
+POST /auth/reset-password
 POST /auth/logout
 GET  /auth/me
 ```

@@ -131,3 +131,13 @@ Tous les contrôles passent et `npm audit` ne signale plus de vulnérabilité hi
 - L'écran Automations charge, crée, active/désactive et supprime les règles via API lorsque `VITE_USE_MOCKS=false`.
 - Ajout de tests API pour tags, automations et membres.
 - Ajout d'un README complet avec installation, variables d'environnement, scripts, endpoints et notes sécurité/déploiement.
+
+## Authentification complète MVP
+
+- Ajout de `POST /auth/register` pour créer un compte et une session JWT.
+- Ajout de `POST /auth/forgot-password` pour générer un token de reset. En MVP/dev, le token est renvoyé dans la réponse afin de tester sans fournisseur email.
+- Ajout de `POST /auth/reset-password` pour changer le mot de passe et ouvrir une session.
+- Ajout d'un hash password `scrypt` côté backend.
+- Ajout d'un modèle Prisma `PasswordResetToken` et migration `000002_password_reset_tokens`.
+- L'écran d'authentification frontend supporte maintenant : Login, Register, Forgot password et Reset password.
+- Les tests API couvrent maintenant register, forgot password et reset password.

@@ -1,5 +1,6 @@
 import { PrismaClient, type TaskPriority, type TaskStatus, type WorkspaceRole, type NotificationType } from '@prisma/client';
 import { boards, notifications, users } from '../src/data/boards';
+import { hashPassword } from '../server/src/services/passwords';
 
 const prisma = new PrismaClient();
 const WORKSPACE_ID = 'w1';
@@ -29,6 +30,7 @@ async function main() {
   await prisma.tag.deleteMany();
   await prisma.board.deleteMany();
   await prisma.workspaceMember.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
   await prisma.userPreference.deleteMany();
   await prisma.user.deleteMany();
   await prisma.workspace.deleteMany();
@@ -54,6 +56,7 @@ async function main() {
         avatarUrl: user.avatar || null,
         initials: user.initials,
         color: user.color,
+        passwordHash: hashPassword('demo-password'),
         memberships: {
           create: {
             workspaceId: WORKSPACE_ID,

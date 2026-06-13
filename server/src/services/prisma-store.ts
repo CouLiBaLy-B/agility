@@ -1,7 +1,9 @@
+import { createHash, randomBytes } from 'node:crypto';
 import { PrismaClient, type Prisma, type TaskPriority, type TaskStatus } from '@prisma/client';
 import type { Board, Notification, Task } from '../../../src/data/boards';
 import type { ApiUser, AutomationRuleDto, TagDto, UserPreferenceDto, Workspace } from './store';
 import { prisma as defaultPrisma } from './prisma-client';
+import { hashPassword, verifyPassword } from './passwords';
 
 const taskInclude = {
   assignees: true,
@@ -18,6 +20,10 @@ const boardInclude = {
 };
 
 type PrismaTask = Prisma.TaskGetPayload<{ include: typeof taskInclude }>;
+
+function hashToken(token: string) {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 function toDateString(value: Date | string | null | undefined) {
   if (!value) return new Date().toISOString().slice(0, 10);
@@ -89,6 +95,84 @@ export class PrismaStore {
       include: { memberships: true },
     });
     return user ? toApiUser(user) : undefined;
+  }
+
+  async validateCredentials(email: string, password: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      include: { memberships: true },
+    });
+    if (!user || !verifyPassword(password, user.passwordHash)) return null;
+    return toApiUser(user);
+  }
+
+  async register(input: { name: string; email: string; password: string; workspaceName?: string }) {
+    const existing = await this.prisma.user.findUnique({ where: { email: input.email.toLowerCase() } });
+    if (existing) return null;
+    const [firstName = input.name, ...rest] = input.name.split(' ');
+    const workspaceSlug = (input.workspaceName || `${input.name}'s Workspace`)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    const user = await this.prisma.user.create({
+      data: {
+        email: input.email.toLowerCase(),
+        firstName,
+        lastName: rest.join(' ') || firstName,
+        displayName: input.name,
+        initials: input.name
+          .split(/[.\s_-]+/)
+          .map((part) => part[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase(),
+        color: '#579BFC',
+        passwordHash: hashPassword(input.password),
+        preferences: { create: { emailNotifications: true, pushNotifications: true, theme: 'system' } },
+        memberships: {
+          create: {
+            role: 'admin',
+            workspace: {
+              create: {
+                name: input.workspaceName || `${input.name}'s Workspace`,
+                slug: `${workspaceSlug || 'workspace'}-${randomBytes(3).toString('hex')}`,
+              },
+            },
+          },
+        },
+      },
+      include: { memberships: true },
+    });
+    return toApiUser(user);
+  }
+
+  async createPasswordResetToken(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (!user) return null;
+    const resetToken = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 30);
+    await this.prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash: hashToken(resetToken), expiresAt },
+    });
+    return { resetToken, expiresAt: expiresAt.toISOString() };
+  }
+
+  async resetPassword(input: { token: string; password: string }) {
+    const tokenHash = hashToken(input.token);
+    const entry = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: { include: { memberships: true } } },
+    });
+    if (!entry || entry.usedAt || entry.expiresAt.getTime() < Date.now()) return null;
+    const user = await this.prisma.user.update({
+      where: { id: entry.userId },
+      data: {
+        passwordHash: hashPassword(input.password),
+        resetTokens: { update: { where: { id: entry.id }, data: { usedAt: new Date() } } },
+      },
+      include: { memberships: true },
+    });
+    return toApiUser(user);
   }
 
   async updateCurrentUser(userId: string, input: Partial<Pick<ApiUser, 'email' | 'name'>>) {
