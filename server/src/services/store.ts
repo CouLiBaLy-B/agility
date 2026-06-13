@@ -205,6 +205,14 @@ export class InMemoryStore {
     return notification;
   }
 
+  markAllNotificationsRead(userId: string) {
+    const notifications = this.listNotifications(userId);
+    notifications.forEach((notification) => {
+      notification.isRead = true;
+    });
+    return { updated: notifications.length };
+  }
+
   getPreferences(userId: string) {
     return this.preferences[userId] ?? { emailNotifications: true, pushNotifications: true, theme: 'system' as const };
   }

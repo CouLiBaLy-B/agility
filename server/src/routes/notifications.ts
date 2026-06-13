@@ -9,6 +9,9 @@ notificationsRouter.get('/', async (req, res) => res.json(await dataStore.listNo
 notificationsRouter.get('/unread-count', async (req, res) =>
   res.json({ count: await dataStore.unreadCount(req.user!.id) }),
 );
+notificationsRouter.patch('/read-all', async (req, res) => {
+  return res.json(await dataStore.markAllNotificationsRead(req.user!.id));
+});
 notificationsRouter.patch('/:notificationId/read', async (req, res) => {
   const notification = await dataStore.markNotificationRead(req.params.notificationId);
   if (!notification) return res.status(404).json({ error: 'notification_not_found' });

@@ -335,6 +335,7 @@ export default function App() {
         isOpen={isInboxOpen} 
         onClose={() => setIsInboxOpen(false)} 
         onTaskClick={findTaskAndOpen}
+        onUnreadChange={(count) => setHasUnread(count > 0)}
       />
 
       {selectedTask && (

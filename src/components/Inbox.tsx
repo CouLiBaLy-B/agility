@@ -6,16 +6,17 @@ import type { Notification } from '../data/boards';
 import { Avatar } from './Avatar';
 import { format, parseISO } from 'date-fns';
 import { isApiEnabled } from '../api/client';
-import { listNotifications } from '../api/notifications';
+import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../api/notifications';
 import { useUsers } from '../context/AppDataContext';
 
 interface InboxProps {
   isOpen: boolean;
   onClose: () => void;
   onTaskClick: (taskId: string) => void;
+  onUnreadChange?: (count: number) => void;
 }
 
-export function Inbox({ isOpen, onClose, onTaskClick }: InboxProps) {
+export function Inbox({ isOpen, onClose, onTaskClick, onUnreadChange }: InboxProps) {
   const users = useUsers();
   const [notifications, setNotifications] = useState<Notification[]>(fallbackNotifications);
 
@@ -26,7 +27,10 @@ export function Inbox({ isOpen, onClose, onTaskClick }: InboxProps) {
     async function loadNotifications() {
       try {
         const remoteNotifications = await listNotifications();
-        if (!cancelled) setNotifications(remoteNotifications);
+        if (!cancelled) {
+          setNotifications(remoteNotifications);
+          onUnreadChange?.(remoteNotifications.filter((notification) => !notification.isRead).length);
+        }
       } catch (error) {
         console.warn('Unable to load notifications from API.', error);
       }
@@ -37,6 +41,46 @@ export function Inbox({ isOpen, onClose, onTaskClick }: InboxProps) {
       cancelled = true;
     };
   }, [isOpen]);
+
+  const syncUnread = (nextNotifications: Notification[]) => {
+    onUnreadChange?.(nextNotifications.filter((notification) => !notification.isRead).length);
+  };
+
+  const markReadLocally = (notificationId: string) => {
+    setNotifications((current) => {
+      const next = current.map((notification) =>
+        notification.id === notificationId ? { ...notification, isRead: true } : notification,
+      );
+      syncUnread(next);
+      return next;
+    });
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.isRead) {
+      markReadLocally(notification.id);
+      if (isApiEnabled()) {
+        void markNotificationRead(notification.id).catch((error) =>
+          console.warn('Unable to mark notification as read.', error),
+        );
+      }
+    }
+    onTaskClick(notification.taskId);
+    onClose();
+  };
+
+  const handleMarkAllRead = () => {
+    setNotifications((current) => {
+      const next = current.map((notification) => ({ ...notification, isRead: true }));
+      syncUnread(next);
+      return next;
+    });
+    if (isApiEnabled()) {
+      void markAllNotificationsRead().catch((error) =>
+        console.warn('Unable to mark all notifications as read.', error),
+      );
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -72,10 +116,7 @@ export function Inbox({ isOpen, onClose, onTaskClick }: InboxProps) {
                       <div
                         key={notif.id}
                         className={`p-4 hover:bg-blue-50 cursor-pointer transition-colors ${!notif.isRead ? 'bg-blue-50/30' : ''}`}
-                        onClick={() => {
-                          onTaskClick(notif.taskId);
-                          onClose();
-                        }}
+                        onClick={() => handleNotificationClick(notif)}
                       >
                         <div className="flex gap-3">
                           <Avatar userId={notif.userId} size="sm" />
@@ -107,8 +148,11 @@ export function Inbox({ isOpen, onClose, onTaskClick }: InboxProps) {
               )}
             </div>
             <div className="p-3 border-t border-gray-100 text-center">
-              <button className="text-xs font-semibold text-blue-500 hover:text-blue-600">
-                View all notifications
+              <button
+                onClick={handleMarkAllRead}
+                className="text-xs font-semibold text-blue-500 hover:text-blue-600"
+              >
+                Mark all as read
               </button>
             </div>
           </motion.div>

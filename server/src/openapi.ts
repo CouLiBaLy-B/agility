@@ -41,6 +41,7 @@ export const openApiDocument = {
     '/tasks/{taskId}/subtasks/{subtaskId}': { patch: { responses: { '200': { description: 'Updated subtask' } } } },
     '/notifications': { get: { responses: { '200': { description: 'User notifications' } } } },
     '/notifications/unread-count': { get: { responses: { '200': { description: 'Unread notifications count' } } } },
+    '/notifications/read-all': { patch: { responses: { '200': { description: 'All notifications marked as read' } } } },
     '/notifications/{notificationId}/read': { patch: { responses: { '200': { description: 'Notification marked as read' } } } },
     '/users/me': { patch: { responses: { '200': { description: 'Updated current user profile' } } } },
     '/users/me/preferences': {

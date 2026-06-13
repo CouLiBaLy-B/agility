@@ -374,6 +374,14 @@ export class PrismaStore {
     }
   }
 
+  async markAllNotificationsRead(userId: string) {
+    const result = await this.prisma.notification.updateMany({
+      where: { userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return { updated: result.count };
+  }
+
   async getPreferences(userId: string): Promise<UserPreferenceDto> {
     const preferences = await this.prisma.userPreference.upsert({
       where: { userId },

@@ -112,3 +112,11 @@ Tous les contrôles passent et `npm audit` ne signale plus de vulnérabilité hi
 - Ajout de `supertest` et `@types/supertest`.
 - Ajout de `server/src/__tests__/api.test.ts` : healthcheck, login, `/auth/me`, boards seedés et préférences utilisateur.
 - La suite de tests contient maintenant 5 tests passants.
+
+## Notifications lues/non lues
+
+- Ajout de `PATCH /notifications/read-all`.
+- Les stores `memory` et `prisma` savent marquer toutes les notifications utilisateur comme lues.
+- Le client frontend notifications expose maintenant `markNotificationRead()` et `markAllNotificationsRead()`.
+- L'Inbox marque une notification comme lue lors du clic, met à jour le badge unread et propose `Mark all as read`.
+- Les tests API couvrent le compteur unread et la lecture globale des notifications.

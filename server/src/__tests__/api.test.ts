@@ -54,4 +54,26 @@ describe('Agility API', () => {
     expect(response.body.theme).toBe('dark');
     expect(response.body.emailNotifications).toBe(false);
   });
+
+  it('marks notifications as read', async () => {
+    const token = await login();
+    const before = await request(app)
+      .get('/notifications/unread-count')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(before.body.count).toBeGreaterThanOrEqual(1);
+
+    await request(app)
+      .patch('/notifications/read-all')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const after = await request(app)
+      .get('/notifications/unread-count')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(after.body.count).toBe(0);
+  });
 });
