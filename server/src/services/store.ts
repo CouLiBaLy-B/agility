@@ -22,6 +22,23 @@ export interface UserPreferenceDto {
   theme: 'light' | 'dark' | 'system';
 }
 
+export interface TagDto {
+  id: string;
+  workspaceId: string;
+  name: string;
+  color: string;
+}
+
+export interface AutomationRuleDto {
+  id: string;
+  boardId: string;
+  name: string;
+  active: boolean;
+  trigger: unknown;
+  conditions?: unknown;
+  actions: unknown;
+}
+
 function clone<T>(value: T): T {
   return structuredClone(value);
 }
@@ -46,6 +63,27 @@ export class InMemoryStore {
 
   private boards: Board[] = clone(seedBoards);
   private notifications: Notification[] = clone(seedNotifications);
+  private tags: TagDto[] = Array.from(
+    new Set(seedBoards.flatMap((board) => board.tasks.flatMap((task) => task.tags))),
+  ).map((name) => ({ id: randomUUID(), workspaceId: this.workspace.id, name, color: '#C4C4C4' }));
+  private automations: AutomationRuleDto[] = [
+    {
+      id: randomUUID(),
+      boardId: 'b1',
+      name: 'When status changes to Done, notify assignees',
+      active: true,
+      trigger: { event: 'task.status.changed', to: 'done' },
+      actions: { type: 'notification.send', target: 'assignees' },
+    },
+    {
+      id: randomUUID(),
+      boardId: 'b1',
+      name: 'When deadline is approaching, notify owner',
+      active: true,
+      trigger: { event: 'task.deadline.approaching', daysBefore: 1 },
+      actions: { type: 'notification.send', target: 'assignees' },
+    },
+  ];
   private preferences: Record<string, UserPreferenceDto> = Object.fromEntries(
     this.users.map((user) => [
       user.id,
@@ -90,6 +128,45 @@ export class InMemoryStore {
     return this.users;
   }
 
+  inviteMember(workspaceId: string, input: { email: string; name?: string; role?: WorkspaceRole }) {
+    this.assertWorkspace(workspaceId);
+    const existing = this.findUserByEmail(input.email);
+    if (existing) return existing;
+    const name = input.name || input.email.split('@')[0];
+    const user: ApiUser = {
+      id: randomUUID(),
+      name,
+      email: input.email.toLowerCase(),
+      avatar: '',
+      initials: name
+        .split(/[.\s_-]+/)
+        .map((part) => part[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase(),
+      color: '#579BFC',
+      role: input.role ?? 'member',
+    };
+    this.users.push(user);
+    this.preferences[user.id] = { emailNotifications: true, pushNotifications: true, theme: 'system' };
+    return user;
+  }
+
+  updateMemberRole(workspaceId: string, userId: string, role: WorkspaceRole) {
+    this.assertWorkspace(workspaceId);
+    const user = this.users.find((candidate) => candidate.id === userId);
+    if (!user) return null;
+    user.role = role;
+    return user;
+  }
+
+  removeMember(workspaceId: string, userId: string) {
+    this.assertWorkspace(workspaceId);
+    const before = this.users.length;
+    this.users = this.users.filter((user) => user.id !== userId);
+    return { deleted: before !== this.users.length };
+  }
+
   listBoards(workspaceId: string) {
     this.assertWorkspace(workspaceId);
     return this.boards;
@@ -117,6 +194,41 @@ export class InMemoryStore {
     if (!board) return null;
     Object.assign(board, input);
     return board;
+  }
+
+  listTags(workspaceId: string) {
+    this.assertWorkspace(workspaceId);
+    return this.tags.filter((tag) => tag.workspaceId === workspaceId);
+  }
+
+  createTag(workspaceId: string, input: { name: string; color?: string }) {
+    this.assertWorkspace(workspaceId);
+    const existing = this.tags.find(
+      (tag) => tag.workspaceId === workspaceId && tag.name.toLowerCase() === input.name.toLowerCase(),
+    );
+    if (existing) return existing;
+    const tag = { id: randomUUID(), workspaceId, name: input.name, color: input.color ?? '#C4C4C4' };
+    this.tags.push(tag);
+    return tag;
+  }
+
+  updateTag(tagId: string, input: { name?: string; color?: string }) {
+    const tag = this.tags.find((candidate) => candidate.id === tagId);
+    if (!tag) return null;
+    Object.assign(tag, input);
+    return tag;
+  }
+
+  deleteTag(tagId: string) {
+    const tag = this.tags.find((candidate) => candidate.id === tagId);
+    if (!tag) return { deleted: false };
+    this.tags = this.tags.filter((candidate) => candidate.id !== tagId);
+    this.boards.forEach((board) => {
+      board.tasks.forEach((task) => {
+        task.tags = task.tags.filter((tagName) => tagName !== tag.name);
+      });
+    });
+    return { deleted: true };
   }
 
   listTasks(boardId: string, filters: { q?: string; status?: Task['status']; priority?: Task['priority']; assigneeId?: string }) {
@@ -221,6 +333,30 @@ export class InMemoryStore {
     const current = this.getPreferences(userId);
     this.preferences[userId] = { ...current, ...input };
     return this.preferences[userId];
+  }
+
+  listAutomations(boardId: string) {
+    return this.automations.filter((automation) => automation.boardId === boardId);
+  }
+
+  createAutomation(boardId: string, input: Omit<AutomationRuleDto, 'id' | 'boardId'>) {
+    if (!this.getBoard(boardId)) return null;
+    const automation = { id: randomUUID(), boardId, ...input };
+    this.automations.push(automation);
+    return automation;
+  }
+
+  updateAutomation(ruleId: string, input: Partial<Omit<AutomationRuleDto, 'id' | 'boardId'>>) {
+    const automation = this.automations.find((candidate) => candidate.id === ruleId);
+    if (!automation) return null;
+    Object.assign(automation, input);
+    return automation;
+  }
+
+  deleteAutomation(ruleId: string) {
+    const before = this.automations.length;
+    this.automations = this.automations.filter((automation) => automation.id !== ruleId);
+    return { deleted: before !== this.automations.length };
   }
 
   private assertWorkspace(workspaceId: string) {

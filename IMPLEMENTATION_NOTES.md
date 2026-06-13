@@ -120,3 +120,14 @@ Tous les contrôles passent et `npm audit` ne signale plus de vulnérabilité hi
 - Le client frontend notifications expose maintenant `markNotificationRead()` et `markAllNotificationsRead()`.
 - L'Inbox marque une notification comme lue lors du clic, met à jour le badge unread et propose `Mark all as read`.
 - Les tests API couvrent le compteur unread et la lecture globale des notifications.
+
+## Tags, membres, automations et README
+
+- Ajout des endpoints membres : invitation, changement de rôle, suppression de membre.
+- Ajout du CRUD tags : `/workspaces/:workspaceId/tags` et `/tags/:tagId`.
+- Ajout du CRUD automations : `/boards/:boardId/automations`, `/automations/:ruleId` et `/automations/:ruleId/test`.
+- Implémentation des nouvelles capacités dans les stores `memory` et `prisma`.
+- Ajout des clients frontend `src/api/tags.ts` et `src/api/automations.ts`.
+- L'écran Automations charge, crée, active/désactive et supprime les règles via API lorsque `VITE_USE_MOCKS=false`.
+- Ajout de tests API pour tags, automations et membres.
+- Ajout d'un README complet avec installation, variables d'environnement, scripts, endpoints et notes sécurité/déploiement.

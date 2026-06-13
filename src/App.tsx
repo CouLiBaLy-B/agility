@@ -228,7 +228,7 @@ export default function App() {
       case 'settings':
         return <Settings />;
       case 'automations':
-        return activeBoard ? <Automations /> : <Dashboard boards={boards} />;
+        return activeBoard ? <Automations boardId={activeBoard.id} /> : <Dashboard boards={boards} />;
     }
 
     if (!activeBoard) {

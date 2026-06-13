@@ -1,6 +1,6 @@
 import { PrismaClient, type Prisma, type TaskPriority, type TaskStatus } from '@prisma/client';
 import type { Board, Notification, Task } from '../../../src/data/boards';
-import type { ApiUser, UserPreferenceDto, Workspace } from './store';
+import type { ApiUser, AutomationRuleDto, TagDto, UserPreferenceDto, Workspace } from './store';
 import { prisma as defaultPrisma } from './prisma-client';
 
 const taskInclude = {
@@ -151,6 +151,54 @@ export class PrismaStore {
     return memberships.map((membership) => toApiUser({ ...membership.user, memberships: [membership] }));
   }
 
+  async inviteMember(workspaceId: string, input: { email: string; name?: string; role?: ApiUser['role'] }) {
+    const displayName = input.name?.trim() || input.email.split('@')[0];
+    const [firstName = displayName, ...rest] = displayName.split(' ');
+    const user = await this.prisma.user.upsert({
+      where: { email: input.email.toLowerCase() },
+      update: {},
+      create: {
+        email: input.email.toLowerCase(),
+        firstName,
+        lastName: rest.join(' ') || firstName,
+        displayName,
+        initials: displayName
+          .split(/[.\s_-]+/)
+          .map((part) => part[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase(),
+        color: '#579BFC',
+        preferences: { create: { emailNotifications: true, pushNotifications: true, theme: 'system' } },
+      },
+    });
+    const membership = await this.prisma.workspaceMember.upsert({
+      where: { workspaceId_userId: { workspaceId, userId: user.id } },
+      update: { role: input.role ?? 'member' },
+      create: { workspaceId, userId: user.id, role: input.role ?? 'member' },
+      include: { user: true },
+    });
+    return toApiUser({ ...membership.user, memberships: [membership] });
+  }
+
+  async updateMemberRole(workspaceId: string, userId: string, role: ApiUser['role']) {
+    try {
+      const membership = await this.prisma.workspaceMember.update({
+        where: { workspaceId_userId: { workspaceId, userId } },
+        data: { role },
+        include: { user: true },
+      });
+      return toApiUser({ ...membership.user, memberships: [membership] });
+    } catch {
+      return null;
+    }
+  }
+
+  async removeMember(workspaceId: string, userId: string) {
+    const result = await this.prisma.workspaceMember.deleteMany({ where: { workspaceId, userId } });
+    return { deleted: result.count > 0 };
+  }
+
   async listBoards(workspaceId: string) {
     const boards = await this.prisma.board.findMany({
       where: { workspaceId, archivedAt: null },
@@ -203,6 +251,32 @@ export class PrismaStore {
     } catch {
       return null;
     }
+  }
+
+  async listTags(workspaceId: string): Promise<TagDto[]> {
+    return this.prisma.tag.findMany({ where: { workspaceId }, orderBy: { name: 'asc' } });
+  }
+
+  async createTag(workspaceId: string, input: { name: string; color?: string }) {
+    const tag = await this.prisma.tag.upsert({
+      where: { workspaceId_name: { workspaceId, name: input.name } },
+      update: { color: input.color ?? undefined },
+      create: { workspaceId, name: input.name, color: input.color ?? '#C4C4C4' },
+    });
+    return tag;
+  }
+
+  async updateTag(tagId: string, input: { name?: string; color?: string }) {
+    try {
+      return await this.prisma.tag.update({ where: { id: tagId }, data: input });
+    } catch {
+      return null;
+    }
+  }
+
+  async deleteTag(tagId: string) {
+    const result = await this.prisma.tag.deleteMany({ where: { id: tagId } });
+    return { deleted: result.count > 0 };
   }
 
   async listTasks(boardId: string, filters: { q?: string; status?: Task['status']; priority?: Task['priority']; assigneeId?: string }) {
@@ -411,5 +485,46 @@ export class PrismaStore {
       pushNotifications: preferences.pushNotifications,
       theme: preferences.theme as UserPreferenceDto['theme'],
     };
+  }
+
+  async listAutomations(boardId: string): Promise<AutomationRuleDto[]> {
+    return this.prisma.automationRule.findMany({ where: { boardId }, orderBy: { createdAt: 'asc' } });
+  }
+
+  async createAutomation(boardId: string, input: Omit<AutomationRuleDto, 'id' | 'boardId'>) {
+    const board = await this.prisma.board.findUnique({ where: { id: boardId }, select: { id: true } });
+    if (!board) return null;
+    return this.prisma.automationRule.create({
+      data: {
+        boardId,
+        name: input.name,
+        active: input.active,
+        trigger: input.trigger as Prisma.InputJsonValue,
+        conditions: input.conditions as Prisma.InputJsonValue | undefined,
+        actions: input.actions as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  async updateAutomation(ruleId: string, input: Partial<Omit<AutomationRuleDto, 'id' | 'boardId'>>) {
+    try {
+      return await this.prisma.automationRule.update({
+        where: { id: ruleId },
+        data: {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.active !== undefined ? { active: input.active } : {}),
+          ...(input.trigger !== undefined ? { trigger: input.trigger as Prisma.InputJsonValue } : {}),
+          ...(input.conditions !== undefined ? { conditions: input.conditions as Prisma.InputJsonValue } : {}),
+          ...(input.actions !== undefined ? { actions: input.actions as Prisma.InputJsonValue } : {}),
+        },
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async deleteAutomation(ruleId: string) {
+    const result = await this.prisma.automationRule.deleteMany({ where: { id: ruleId } });
+    return { deleted: result.count > 0 };
   }
 }

@@ -18,6 +18,28 @@ workspacesRouter.get('/:workspaceId/members', async (req, res) => {
   return res.json(await dataStore.listMembers(req.params.workspaceId));
 });
 
+workspacesRouter.post('/:workspaceId/invitations', async (req, res) => {
+  const body = z
+    .object({
+      email: z.string().email(),
+      name: z.string().min(1).max(160).optional(),
+      role: z.enum(['owner', 'admin', 'member', 'viewer']).optional(),
+    })
+    .parse(req.body);
+  return res.status(201).json(await dataStore.inviteMember(req.params.workspaceId, body));
+});
+
+workspacesRouter.patch('/:workspaceId/members/:userId', async (req, res) => {
+  const body = z.object({ role: z.enum(['owner', 'admin', 'member', 'viewer']) }).parse(req.body);
+  const member = await dataStore.updateMemberRole(req.params.workspaceId, req.params.userId, body.role);
+  if (!member) return res.status(404).json({ error: 'member_not_found' });
+  return res.json(member);
+});
+
+workspacesRouter.delete('/:workspaceId/members/:userId', async (req, res) => {
+  return res.json(await dataStore.removeMember(req.params.workspaceId, req.params.userId));
+});
+
 workspacesRouter.get('/:workspaceId/boards', async (req, res) => {
   return res.json(await dataStore.listBoards(req.params.workspaceId));
 });

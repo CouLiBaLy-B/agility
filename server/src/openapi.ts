@@ -18,7 +18,14 @@ export const openApiDocument = {
     '/auth/me': { get: { responses: { '200': { description: 'Current user and workspaces' } } } },
     '/workspaces': { get: { responses: { '200': { description: 'Accessible workspaces' } } } },
     '/workspaces/{workspaceId}': { get: { responses: { '200': { description: 'Workspace detail' } } } },
-    '/workspaces/{workspaceId}/members': { get: { responses: { '200': { description: 'Workspace members' } } } },
+    '/workspaces/{workspaceId}/members': {
+      get: { responses: { '200': { description: 'Workspace members' } } },
+    },
+    '/workspaces/{workspaceId}/invitations': { post: { responses: { '201': { description: 'Invited member' } } } },
+    '/workspaces/{workspaceId}/members/{userId}': {
+      patch: { responses: { '200': { description: 'Updated member role' } } },
+      delete: { responses: { '200': { description: 'Removed member' } } },
+    },
     '/workspaces/{workspaceId}/boards': {
       get: { responses: { '200': { description: 'Workspace boards with tasks' } } },
       post: { responses: { '201': { description: 'Created board' } } },
@@ -43,6 +50,23 @@ export const openApiDocument = {
     '/notifications/unread-count': { get: { responses: { '200': { description: 'Unread notifications count' } } } },
     '/notifications/read-all': { patch: { responses: { '200': { description: 'All notifications marked as read' } } } },
     '/notifications/{notificationId}/read': { patch: { responses: { '200': { description: 'Notification marked as read' } } } },
+    '/workspaces/{workspaceId}/tags': {
+      get: { responses: { '200': { description: 'Workspace tags' } } },
+      post: { responses: { '201': { description: 'Created tag' } } },
+    },
+    '/tags/{tagId}': {
+      patch: { responses: { '200': { description: 'Updated tag' } } },
+      delete: { responses: { '200': { description: 'Deleted tag' } } },
+    },
+    '/boards/{boardId}/automations': {
+      get: { responses: { '200': { description: 'Board automations' } } },
+      post: { responses: { '201': { description: 'Created automation' } } },
+    },
+    '/automations/{ruleId}': {
+      patch: { responses: { '200': { description: 'Updated automation' } } },
+      delete: { responses: { '200': { description: 'Deleted automation' } } },
+    },
+    '/automations/{ruleId}/test': { post: { responses: { '200': { description: 'Automation test result' } } } },
     '/users/me': { patch: { responses: { '200': { description: 'Updated current user profile' } } } },
     '/users/me/preferences': {
       get: { responses: { '200': { description: 'Current user preferences' } } },

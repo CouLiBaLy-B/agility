@@ -11,6 +11,8 @@ import { boardsRouter } from './routes/boards';
 import { tasksRouter } from './routes/tasks';
 import { notificationsRouter } from './routes/notifications';
 import { usersRouter } from './routes/users';
+import { tagsRouter } from './routes/tags';
+import { automationsRouter } from './routes/automations';
 import { openApiDocument } from './openapi';
 
 export function createApp() {
@@ -42,6 +44,8 @@ export function createApp() {
   app.use('/tasks', tasksRouter);
   app.use('/notifications', notificationsRouter);
   app.use('/users', usersRouter);
+  app.use(tagsRouter);
+  app.use(automationsRouter);
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (err instanceof ZodError) {
