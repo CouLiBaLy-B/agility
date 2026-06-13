@@ -15,6 +15,7 @@ import { usersRouter } from './routes/users';
 import { tagsRouter } from './routes/tags';
 import { automationsRouter } from './routes/automations';
 import { openApiDocument } from './openapi';
+import { prisma } from './services/prisma-client';
 
 export function createApp() {
   const app = express();
@@ -27,6 +28,18 @@ export function createApp() {
   app.use(rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }));
 
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'agility-api' }));
+  app.get('/health/ready', async (_req, res) => {
+    if (process.env.DATA_STORE !== 'prisma') {
+      return res.json({ status: 'ready', store: 'memory' });
+    }
+
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      return res.json({ status: 'ready', store: 'prisma' });
+    } catch {
+      return res.status(503).json({ status: 'not_ready', store: 'prisma' });
+    }
+  });
   app.get('/openapi.json', (_req, res) => res.json(openApiDocument));
   app.get('/docs', (_req, res) => {
     res.type('html').send(`<!doctype html>

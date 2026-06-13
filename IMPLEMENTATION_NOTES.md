@@ -169,3 +169,13 @@ Tous les contrôles passent et `npm audit` ne signale plus de vulnérabilité hi
 - Le bootstrap frontend peut restaurer une session via cookie refresh même si l'access token n'est plus en localStorage.
 - Le bouton Log Out dans Settings appelle maintenant le backend.
 - Tests API ajoutés pour refresh/logout.
+
+## Sprint routing/déploiement readiness
+
+- Ajout de `react-router-dom` avec `HashRouter` pour supporter GitHub Pages.
+- Les écrans auth sont maintenant accessibles par routes hash : `#/login`, `#/register`, `#/forgot-password`, `#/reset-password`.
+- Après login/register/reset réussi, l'utilisateur est redirigé vers `#/app`.
+- Logout redirige vers `#/login` en mode API.
+- Ajout de `/health/ready` pour readiness API et vérification DB en mode Prisma.
+- Ajout de `npm run start:api`, `npm run db:deploy` et d'un `Dockerfile` API.
+- Les tests couvrent maintenant `/health/ready`.

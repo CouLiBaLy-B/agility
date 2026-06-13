@@ -173,6 +173,7 @@ VITE_USE_MOCKS=false npm run dev:web
 npm run dev           # Vite frontend
 npm run dev:web       # Vite frontend
 npm run dev:api       # Express API with tsx watch
+npm run start:api     # Express API without watch
 npm run build         # Vite production build
 npm run build:web     # Vite production build
 npm run typecheck     # TypeScript check
@@ -182,6 +183,7 @@ npm test              # Vitest + frontend/API tests
 npm run db:generate   # Prisma client generation
 npm run db:push       # Push Prisma schema to DB
 npm run db:migrate    # Create/run Prisma migration in dev
+npm run db:deploy     # Deploy Prisma migrations in production
 npm run db:seed       # Seed demo data
 npm run db:studio     # Prisma Studio
 ```
@@ -191,6 +193,8 @@ npm run db:studio     # Prisma Studio
 When the API is running:
 
 ```text
+GET http://localhost:3000/health
+GET http://localhost:3000/health/ready
 GET http://localhost:3000/openapi.json
 GET http://localhost:3000/docs
 ```

@@ -13,7 +13,8 @@ export const openApiDocument = {
   },
   security: [{ bearerAuth: [] }],
   paths: {
-    '/health': { get: { security: [], responses: { '200': { description: 'API health' } } } },
+    '/health': { get: { security: [], responses: { '200': { description: 'API liveness' } } } },
+    '/health/ready': { get: { security: [], responses: { '200': { description: 'API readiness' }, '503': { description: 'API not ready' } } } },
     '/auth/login': { post: { security: [], responses: { '200': { description: 'JWT session' } } } },
     '/auth/register': { post: { security: [], responses: { '201': { description: 'Created account and JWT session' } } } },
     '/auth/forgot-password': { post: { security: [], responses: { '200': { description: 'Password reset request accepted' } } } },

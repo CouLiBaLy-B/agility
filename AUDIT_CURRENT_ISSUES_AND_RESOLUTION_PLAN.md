@@ -248,3 +248,13 @@ Corrections implémentées :
 - Tests API refresh/logout ajoutés.
 
 Reste à renforcer avant production : revue CSRF complète, politique password, email provider reset password, déploiement backend public, tests Prisma/PostgreSQL réels et CI GitHub Actions.
+
+## Addendum — Sprint routing/déploiement readiness
+
+Corrections implémentées :
+
+- React Router ajouté avec HashRouter compatible GitHub Pages.
+- Routes auth dédiées disponibles côté frontend : `#/login`, `#/register`, `#/forgot-password`, `#/reset-password`.
+- Ajout de `/health/ready` avec vérification DB lorsque `DATA_STORE=prisma`.
+- Ajout Dockerfile API, `start:api` et `db:deploy` pour déploiement.
+- Tests readiness ajoutés.

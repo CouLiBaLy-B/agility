@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import type { Task, Board } from './data/boards';
 import { boards as initialBoards, users as initialUsers } from './data/boards';
 import { isApiEnabled } from './api/client';
@@ -31,6 +32,7 @@ const DEFAULT_WORKSPACE: WorkspaceSummary = {
 };
 
 export default function App() {
+  const navigate = useNavigate();
   const [boards, setBoards] = useState<Board[]>(initialBoards);
   const [activeBoardId, setActiveBoardId] = useState<string | null>('b1');
   const [activeView, setActiveView] = useState('board');
@@ -105,6 +107,7 @@ export default function App() {
         await login(email, password);
         await loadRemoteData();
         setAuthStatus('authenticated');
+        navigate('/app');
       } catch (error) {
         console.warn('Login failed.', error);
         localStorage.removeItem('agility.accessToken');
@@ -112,7 +115,7 @@ export default function App() {
         setAuthStatus('unauthenticated');
       }
     },
-    [loadRemoteData],
+    [loadRemoteData, navigate],
   );
 
   const handleRegister = useCallback(
@@ -123,6 +126,7 @@ export default function App() {
         await register(input);
         await loadRemoteData();
         setAuthStatus('authenticated');
+        navigate('/app');
       } catch (error) {
         console.warn('Registration failed.', error);
         localStorage.removeItem('agility.accessToken');
@@ -130,7 +134,7 @@ export default function App() {
         setAuthStatus('unauthenticated');
       }
     },
-    [loadRemoteData],
+    [loadRemoteData, navigate],
   );
 
   const handleForgotPassword = useCallback(async (email: string) => {
@@ -155,6 +159,7 @@ export default function App() {
         await resetPassword(token, password);
         await loadRemoteData();
         setAuthStatus('authenticated');
+        navigate('/app');
       } catch (error) {
         console.warn('Reset password failed.', error);
         localStorage.removeItem('agility.accessToken');
@@ -162,7 +167,7 @@ export default function App() {
         setAuthStatus('unauthenticated');
       }
     },
-    [loadRemoteData],
+    [loadRemoteData, navigate],
   );
 
   const handleLogout = useCallback(async () => {
@@ -173,8 +178,9 @@ export default function App() {
     } finally {
       localStorage.removeItem('agility.accessToken');
       setAuthStatus(isApiEnabled() ? 'unauthenticated' : 'authenticated');
+      if (isApiEnabled()) navigate('/login');
     }
-  }, []);
+  }, [navigate]);
 
   const activeBoard = activeBoardId
     ? boards.find((b) => b.id === activeBoardId) || null

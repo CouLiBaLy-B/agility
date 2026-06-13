@@ -20,6 +20,11 @@ describe('Agility API', () => {
     expect(response.body).toEqual({ status: 'ok', service: 'agility-api' });
   });
 
+  it('returns readiness status', async () => {
+    const response = await request(app).get('/health/ready').expect(200);
+    expect(response.body.status).toBe('ready');
+  });
+
   it('authenticates, refreshes and logs out with refresh cookie', async () => {
     const agent = request.agent(app);
     const loginResponse = await agent

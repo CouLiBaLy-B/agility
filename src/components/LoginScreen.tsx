@@ -1,7 +1,24 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Lock, Mail, Rocket, UserRound } from 'lucide-react';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
+
+function modeFromPath(pathname: string): AuthMode {
+  if (pathname.includes('register')) return 'register';
+  if (pathname.includes('forgot-password')) return 'forgot';
+  if (pathname.includes('reset-password')) return 'reset';
+  return 'login';
+}
+
+function pathForMode(mode: AuthMode) {
+  return {
+    login: '/login',
+    register: '/register',
+    forgot: '/forgot-password',
+    reset: '/reset-password',
+  }[mode];
+}
 
 interface LoginScreenProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -25,7 +42,9 @@ export function LoginScreen({
   isLoading,
   error,
 }: LoginScreenProps) {
-  const [mode, setMode] = useState<AuthMode>('login');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<AuthMode>(() => modeFromPath(location.pathname));
   const [name, setName] = useState('Sarah Chen');
   const [workspaceName, setWorkspaceName] = useState('WorkSpace');
   const [email, setEmail] = useState('sarah.chen@company.com');
@@ -33,6 +52,17 @@ export function LoginScreen({
   const [confirmPassword, setConfirmPassword] = useState('demo-password');
   const [resetToken, setResetToken] = useState('');
   const [info, setInfo] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMode(modeFromPath(location.pathname));
+    setInfo(null);
+  }, [location.pathname]);
+
+  const goToMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    setInfo(null);
+    navigate(pathForMode(nextMode));
+  };
 
   const title = {
     login: 'Sign in to your workspace',
@@ -59,7 +89,7 @@ export function LoginScreen({
       );
       if (response.resetToken) {
         setResetToken(response.resetToken);
-        setMode('reset');
+        goToMode('reset');
       }
     }
     if (mode === 'reset') await onResetPassword(resetToken, password);
@@ -81,10 +111,7 @@ export function LoginScreen({
         {mode !== 'login' && (
           <button
             type="button"
-            onClick={() => {
-              setMode('login');
-              setInfo(null);
-            }}
+            onClick={() => goToMode('login')}
             className="mb-4 flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800"
           >
             <ArrowLeft className="w-3 h-3" />
@@ -187,17 +214,17 @@ export function LoginScreen({
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold">
           {mode !== 'register' && (
-            <button className="text-blue-500 hover:text-blue-600" onClick={() => setMode('register')}>
+            <button className="text-blue-500 hover:text-blue-600" onClick={() => goToMode('register')}>
               Create account
             </button>
           )}
           {mode !== 'forgot' && (
-            <button className="text-gray-500 hover:text-gray-700" onClick={() => setMode('forgot')}>
+            <button className="text-gray-500 hover:text-gray-700" onClick={() => goToMode('forgot')}>
               Forgot password?
             </button>
           )}
           {mode !== 'reset' && (
-            <button className="text-gray-500 hover:text-gray-700" onClick={() => setMode('reset')}>
+            <button className="text-gray-500 hover:text-gray-700" onClick={() => goToMode('reset')}>
               I have a reset token
             </button>
           )}
