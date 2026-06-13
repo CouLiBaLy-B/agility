@@ -13,7 +13,7 @@ notificationsRouter.patch('/read-all', async (req, res) => {
   return res.json(await dataStore.markAllNotificationsRead(req.user!.id));
 });
 notificationsRouter.patch('/:notificationId/read', async (req, res) => {
-  const notification = await dataStore.markNotificationRead(req.params.notificationId);
+  const notification = await dataStore.markNotificationRead(String(req.params.notificationId));
   if (!notification) return res.status(404).json({ error: 'notification_not_found' });
   return res.json(notification);
 });

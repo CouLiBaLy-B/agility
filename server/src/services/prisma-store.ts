@@ -205,25 +205,69 @@ export class PrismaStore {
     }
   }
 
-  async listWorkspaces() {
-    const workspaces = await this.prisma.workspace.findMany({ orderBy: { createdAt: 'asc' } });
-    return workspaces.map((workspace): Workspace => ({
-      id: workspace.id,
-      name: workspace.name,
-      slug: workspace.slug,
-      currentUserRole: 'admin',
-    }));
+  async listWorkspaces(userId?: string) {
+    const workspaces = await this.prisma.workspace.findMany({
+      where: userId ? { members: { some: { userId } } } : {},
+      include: userId ? { members: { where: { userId } } } : undefined,
+      orderBy: { createdAt: 'asc' },
+    });
+    return workspaces.map((workspace): Workspace => {
+      const membership = (workspace as { members?: { role: Workspace['currentUserRole'] }[] }).members?.[0];
+      return {
+        id: workspace.id,
+        name: workspace.name,
+        slug: workspace.slug,
+        currentUserRole: (membership?.role ?? 'admin') as Workspace['currentUserRole'],
+      };
+    });
   }
 
-  async getWorkspace(workspaceId: string) {
-    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
+  async getWorkspace(workspaceId: string, userId?: string) {
+    const workspace = await this.prisma.workspace.findFirst({
+      where: { id: workspaceId, ...(userId ? { members: { some: { userId } } } : {}) },
+      include: userId ? { members: { where: { userId } } } : undefined,
+    });
     if (!workspace) return null;
+    const membership = (workspace as { members?: { role: Workspace['currentUserRole'] }[] }).members?.[0];
     return {
       id: workspace.id,
       name: workspace.name,
       slug: workspace.slug,
-      currentUserRole: 'admin' as const,
+      currentUserRole: (membership?.role ?? 'admin') as Workspace['currentUserRole'],
     };
+  }
+
+  async getMembership(workspaceId: string, userId: string) {
+    return this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { userId: true, workspaceId: true, role: true },
+    });
+  }
+
+  async getBoardWorkspaceId(boardId: string) {
+    const board = await this.prisma.board.findUnique({ where: { id: boardId }, select: { workspaceId: true } });
+    return board?.workspaceId ?? null;
+  }
+
+  async getTaskWorkspaceId(taskId: string) {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: { board: { select: { workspaceId: true } } },
+    });
+    return task?.board.workspaceId ?? null;
+  }
+
+  async getTagWorkspaceId(tagId: string) {
+    const tag = await this.prisma.tag.findUnique({ where: { id: tagId }, select: { workspaceId: true } });
+    return tag?.workspaceId ?? null;
+  }
+
+  async getAutomationWorkspaceId(ruleId: string) {
+    const automation = await this.prisma.automationRule.findUnique({
+      where: { id: ruleId },
+      select: { board: { select: { workspaceId: true } } },
+    });
+    return automation?.board.workspaceId ?? null;
   }
 
   async listMembers(workspaceId: string) {

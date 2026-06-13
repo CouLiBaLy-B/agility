@@ -3,7 +3,7 @@ import { boards as seedBoards, users as seedUsers, notifications as seedNotifica
 import type { Board, Notification, Task, User } from '../../../src/data/boards';
 import { hashPassword, verifyPassword } from './passwords';
 
-type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
+export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
 
 export interface ApiUser extends User {
   email: string;
@@ -178,12 +178,40 @@ export class InMemoryStore {
     return user;
   }
 
-  listWorkspaces() {
+  listWorkspaces(userId?: string) {
+    if (userId && !this.users.some((user) => user.id === userId)) return [];
     return [this.workspace];
   }
 
-  getWorkspace(workspaceId: string) {
-    return workspaceId === this.workspace.id ? this.workspace : null;
+  getWorkspace(workspaceId: string, userId?: string) {
+    if (workspaceId !== this.workspace.id) return null;
+    if (userId && !this.users.some((user) => user.id === userId)) return null;
+    return this.workspace;
+  }
+
+  getMembership(workspaceId: string, userId: string) {
+    this.assertWorkspace(workspaceId);
+    const user = this.users.find((candidate) => candidate.id === userId);
+    return user ? { userId, workspaceId, role: user.role } : null;
+  }
+
+  getBoardWorkspaceId(boardId: string) {
+    return this.getBoard(boardId) ? this.workspace.id : null;
+  }
+
+  getTaskWorkspaceId(taskId: string) {
+    return this.boards.some((board) => board.tasks.some((task) => task.id === taskId))
+      ? this.workspace.id
+      : null;
+  }
+
+  getTagWorkspaceId(tagId: string) {
+    return this.tags.find((tag) => tag.id === tagId)?.workspaceId ?? null;
+  }
+
+  getAutomationWorkspaceId(ruleId: string) {
+    const automation = this.automations.find((rule) => rule.id === ruleId);
+    return automation ? this.getBoardWorkspaceId(automation.boardId) : null;
   }
 
   listMembers(workspaceId: string) {

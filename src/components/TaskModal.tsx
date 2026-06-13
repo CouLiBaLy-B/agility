@@ -13,9 +13,10 @@ interface TaskModalProps {
   task: Task | null;
   onClose: () => void;
   onUpdate: (task: Task) => void;
+  onAddComment?: (taskId: string, text: string) => Promise<Task['comments'][number]>;
 }
 
-export function TaskModal({ task, onClose, onUpdate }: TaskModalProps) {
+export function TaskModal({ task, onClose, onUpdate, onAddComment }: TaskModalProps) {
   const [localTask, setLocalTask] = useState<Task | null>(task);
   const [newComment, setNewComment] = useState('');
   const users = useUsers();
@@ -46,19 +47,22 @@ export function TaskModal({ task, onClose, onUpdate }: TaskModalProps) {
     onUpdate(updated);
   };
 
-  const addComment = () => {
-    if (!newComment.trim()) return;
+  const addComment = async () => {
+    const text = newComment.trim();
+    if (!text) return;
+
+    const comment = onAddComment
+      ? await onAddComment(localTask.id, text)
+      : {
+          id: `c${crypto.randomUUID()}`,
+          userId: currentUser.id,
+          text,
+          date: format(new Date(), 'yyyy-MM-dd'),
+        };
+
     const updated = {
       ...localTask,
-      comments: [
-        ...localTask.comments,
-        {
-          id: `c${Date.now()}`,
-          userId: currentUser.id,
-          text: newComment,
-          date: format(new Date(), 'yyyy-MM-dd'),
-        },
-      ],
+      comments: [...localTask.comments, comment],
     };
     setLocalTask(updated);
     onUpdate(updated);
@@ -230,12 +234,14 @@ export function TaskModal({ task, onClose, onUpdate }: TaskModalProps) {
                     type="text"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addComment()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void addComment();
+                    }}
                     placeholder="Write a comment..."
                     className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <button
-                    onClick={addComment}
+                    onClick={() => void addComment()}
                     className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     Post

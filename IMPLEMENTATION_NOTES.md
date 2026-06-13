@@ -141,3 +141,11 @@ Tous les contrôles passent et `npm audit` ne signale plus de vulnérabilité hi
 - Ajout d'un modèle Prisma `PasswordResetToken` et migration `000002_password_reset_tokens`.
 - L'écran d'authentification frontend supporte maintenant : Login, Register, Forgot password et Reset password.
 - Les tests API couvrent maintenant register, forgot password et reset password.
+
+## Sprint sécurité/cohérence — corrections appliquées
+
+- Ajout de contrôles RBAC workspace/board/task/tag/automation côté API.
+- `PrismaStore.listWorkspaces()` et `/auth/me` filtrent désormais les workspaces par utilisateur courant.
+- Les routes sensibles membres, boards, tasks, tags et automations exigent maintenant un rôle minimal (`viewer`, `member`, `admin`).
+- Le reset token n'est plus exposé en production sauf `EXPOSE_RESET_TOKEN=true`.
+- Les commentaires de tâche côté frontend passent désormais par `POST /tasks/:taskId/comments` via `src/api/tasks.ts`, au lieu de dépendre d'un PATCH global de tâche.

@@ -2,17 +2,18 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth';
 import { dataStore } from '../services/data-store';
+import { requireBoardRole } from '../middleware/rbac';
 
 export const boardsRouter = Router();
 boardsRouter.use(requireAuth);
 
-boardsRouter.get('/:boardId', async (req, res) => {
-  const board = await dataStore.getBoard(req.params.boardId);
+boardsRouter.get('/:boardId', requireBoardRole('viewer'), async (req, res) => {
+  const board = await dataStore.getBoard(String(req.params.boardId));
   if (!board) return res.status(404).json({ error: 'board_not_found' });
   return res.json(board);
 });
 
-boardsRouter.patch('/:boardId', async (req, res) => {
+boardsRouter.patch('/:boardId', requireBoardRole('member'), async (req, res) => {
   const body = z
     .object({
       name: z.string().min(1).max(120).optional(),
@@ -20,13 +21,13 @@ boardsRouter.patch('/:boardId', async (req, res) => {
       color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
     })
     .parse(req.body);
-  const board = await dataStore.updateBoard(req.params.boardId, body);
+  const board = await dataStore.updateBoard(String(req.params.boardId), body);
   if (!board) return res.status(404).json({ error: 'board_not_found' });
   return res.json(board);
 });
 
-boardsRouter.get('/:boardId/tasks', async (req, res) => {
-  const tasks = await dataStore.listTasks(req.params.boardId, {
+boardsRouter.get('/:boardId/tasks', requireBoardRole('viewer'), async (req, res) => {
+  const tasks = await dataStore.listTasks(String(req.params.boardId), {
     q: typeof req.query.q === 'string' ? req.query.q : undefined,
     status: typeof req.query.status === 'string' ? (req.query.status as never) : undefined,
     priority: typeof req.query.priority === 'string' ? (req.query.priority as never) : undefined,
@@ -47,9 +48,9 @@ const TaskSchema = z.object({
   description: z.string().optional(),
 });
 
-boardsRouter.post('/:boardId/tasks', async (req, res) => {
+boardsRouter.post('/:boardId/tasks', requireBoardRole('member'), async (req, res) => {
   const body = TaskSchema.parse(req.body);
-  const task = await dataStore.createTask(req.params.boardId, { ...body, subtasks: [], comments: [] });
+  const task = await dataStore.createTask(String(req.params.boardId), { ...body, subtasks: [], comments: [] });
   if (!task) return res.status(404).json({ error: 'board_not_found' });
   return res.status(201).json(task);
 });

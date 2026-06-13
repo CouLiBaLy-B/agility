@@ -9,6 +9,7 @@ import { createBoard as createBoardApi, createTask as createTaskApi, listBoards,
 import { unreadCount } from './api/notifications';
 import { listWorkspaceMembers } from './api/workspaces';
 import { AppDataProvider, type AppUser } from './context/AppDataContext';
+import { addTaskComment } from './api/tasks';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BoardView } from './components/BoardView';
@@ -227,6 +228,16 @@ export default function App() {
     }
   }, [selectedTask]);
 
+  const handleAddComment = useCallback(async (taskId: string, text: string) => {
+    if (isApiEnabled()) return addTaskComment(taskId, text);
+    return {
+      id: crypto.randomUUID(),
+      userId: currentUser.id,
+      text,
+      date: new Date().toISOString().split('T')[0],
+    };
+  }, [currentUser.id]);
+
   const handleAddTask = useCallback(() => {
     if (!activeBoard) return;
     const fallbackTask: Task = {
@@ -396,6 +407,7 @@ export default function App() {
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
           onUpdate={handleUpdateTask}
+          onAddComment={handleAddComment}
         />
       )}
       </div>

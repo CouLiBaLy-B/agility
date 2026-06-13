@@ -53,12 +53,13 @@ authRouter.post('/forgot-password', async (req, res) => {
   const body = ForgotPasswordSchema.parse(req.body);
   const reset = await dataStore.createPasswordResetToken(body.email);
 
-  // Always return 200 to avoid account enumeration. In this MVP/dev build we expose
-  // the token so the reset page can be tested without an email provider.
+  // Always return 200 to avoid account enumeration. In development we can expose
+  // the token so the reset page is testable without an email provider.
+  const exposeToken = process.env.NODE_ENV !== 'production' || process.env.EXPOSE_RESET_TOKEN === 'true';
   return res.json({
     ok: true,
-    resetToken: reset?.resetToken,
-    expiresAt: reset?.expiresAt,
+    resetToken: exposeToken ? reset?.resetToken : undefined,
+    expiresAt: exposeToken ? reset?.expiresAt : undefined,
     message: 'If the email exists, reset instructions have been generated.',
   });
 });
@@ -75,6 +76,6 @@ authRouter.post('/logout', (_req, res) => res.status(204).send());
 authRouter.get('/me', requireAuth, async (req, res) => {
   res.json({
     user: req.user,
-    workspaces: await dataStore.listWorkspaces(),
+    workspaces: await dataStore.listWorkspaces(req.user!.id),
   });
 });
