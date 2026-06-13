@@ -354,7 +354,7 @@ export default function App() {
   }
 
   return (
-    <AppDataProvider value={{ users, currentUser, setCurrentUser, workspace }}>
+    <AppDataProvider value={{ users, setUsers, currentUser, setCurrentUser, workspace }}>
       <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar
         boards={boards}

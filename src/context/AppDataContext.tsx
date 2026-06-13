@@ -7,6 +7,7 @@ export type AppUser = User & Partial<Pick<ApiUser, 'email' | 'role'>>;
 
 interface AppDataContextValue {
   users: AppUser[];
+  setUsers?: Dispatch<SetStateAction<AppUser[]>>;
   currentUser: AppUser;
   setCurrentUser?: Dispatch<SetStateAction<AppUser>>;
   workspace: WorkspaceSummary | null;

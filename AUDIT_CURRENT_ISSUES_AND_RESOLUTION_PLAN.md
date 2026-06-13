@@ -224,3 +224,14 @@ Corrections implémentées après cet audit :
 - Validations relancées : typecheck, lint, tests, build et audit npm high passent.
 
 Restent à traiter en priorité : déploiement backend public, refresh token HttpOnly, CI GitHub Actions avec token `workflow`, tests Prisma/PostgreSQL réels, UI members/tags complète et moteur d'automations.
+
+## Addendum — Sprint suivant UI Members/Tags
+
+Corrections implémentées :
+
+- UI People enrichie avec invitation membre, changement de rôle et suppression.
+- UI Tags ajoutée dans Settings > Integrations avec CRUD nom/couleur.
+- Contexte frontend étendu avec `setUsers` pour synchroniser les mutations membres.
+- Validations relancées : typecheck, lint, tests, build, audit high OK.
+
+Reste : déploiement backend public, refresh tokens HttpOnly, tests Prisma/PostgreSQL réels, React Router pour pages auth dédiées, moteur d'automations réel.

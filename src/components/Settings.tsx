@@ -5,10 +5,11 @@ import { useAppData } from '../context/AppDataContext';
 import { isApiEnabled } from '../api/client';
 import { getPreferences, updatePreferences, type UserPreferences } from '../api/preferences';
 import { updateMe } from '../api/users';
+import { createTag, deleteTag, listTags, updateTag, type Tag } from '../api/tags';
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState('profile');
-  const { currentUser, setCurrentUser } = useAppData();
+  const { currentUser, setCurrentUser, workspace } = useAppData();
   const [initialFirstName = currentUser.name, initialLastName = ''] = currentUser.name.split(' ');
   const [firstName, setFirstName] = useState(initialFirstName);
   const [lastName, setLastName] = useState(initialLastName);
@@ -19,6 +20,9 @@ export function Settings() {
     theme: 'system',
   });
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('#579BFC');
 
   useEffect(() => {
     const [nextFirstName = currentUser.name, nextLastName = ''] = currentUser.name.split(' ');
@@ -34,6 +38,17 @@ export function Settings() {
       .catch((error) => console.warn('Unable to load preferences.', error));
   }, []);
 
+  useEffect(() => {
+    if (!workspace) return;
+    if (!isApiEnabled()) {
+      setTags([]);
+      return;
+    }
+    void listTags(workspace.id)
+      .then(setTags)
+      .catch((error) => console.warn('Unable to load tags.', error));
+  }, [workspace]);
+
   const persistPreferences = (next: UserPreferences) => {
     setPreferences(next);
     setSaveStatus('idle');
@@ -47,6 +62,39 @@ export function Settings() {
         console.warn('Unable to save preferences.', error);
         setSaveStatus('error');
       });
+  };
+
+  const saveTag = (tag: Tag, input: Partial<Pick<Tag, 'name' | 'color'>>) => {
+    setTags((current) => current.map((item) => (item.id === tag.id ? { ...item, ...input } : item)));
+    if (isApiEnabled()) {
+      void updateTag(tag.id, input).catch((error) => console.warn('Unable to update tag.', error));
+    }
+  };
+
+  const addTag = () => {
+    const name = newTagName.trim();
+    if (!name || !workspace) return;
+    if (!isApiEnabled()) {
+      setTags((current) => [
+        ...current,
+        { id: crypto.randomUUID(), workspaceId: workspace.id, name, color: newTagColor },
+      ]);
+      setNewTagName('');
+      return;
+    }
+    void createTag({ name, color: newTagColor }, workspace.id)
+      .then((tag) => {
+        setTags((current) => (current.some((item) => item.id === tag.id) ? current : [...current, tag]));
+        setNewTagName('');
+      })
+      .catch((error) => console.warn('Unable to create tag.', error));
+  };
+
+  const removeTag = (tagId: string) => {
+    setTags((current) => current.filter((tag) => tag.id !== tagId));
+    if (isApiEnabled()) {
+      void deleteTag(tagId).catch((error) => console.warn('Unable to delete tag.', error));
+    }
   };
 
   const saveProfile = () => {
@@ -243,6 +291,61 @@ export function Settings() {
                     />
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'integrations' && (
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold text-gray-800">Workspace tags</h4>
+                <p className="text-sm text-gray-400">Create and maintain reusable task tags.</p>
+              </div>
+              <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+                <input
+                  value={newTagName}
+                  onChange={(event) => setNewTagName(event.target.value)}
+                  placeholder="Tag name"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="color"
+                  value={newTagColor}
+                  onChange={(event) => setNewTagColor(event.target.value)}
+                  className="w-12 h-10 border border-gray-200 rounded-lg"
+                />
+                <button
+                  onClick={addTag}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600"
+                >
+                  Add tag
+                </button>
+              </div>
+              <div className="space-y-2">
+                {tags.length === 0 && (
+                  <p className="text-sm text-gray-400">No tags loaded yet. API mode will load workspace tags.</p>
+                )}
+                {tags.map((tag) => (
+                  <div key={tag.id} className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                    <input
+                      value={tag.name}
+                      onChange={(event) => saveTag(tag, { name: event.target.value })}
+                      className="flex-1 bg-white px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    />
+                    <input
+                      type="color"
+                      value={tag.color}
+                      onChange={(event) => saveTag(tag, { color: event.target.value })}
+                      className="w-10 h-10 border border-gray-200 rounded-lg"
+                    />
+                    <button
+                      onClick={() => removeTag(tag.id)}
+                      className="px-3 py-2 text-sm font-semibold text-red-500 hover:bg-red-50 rounded-lg"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}

@@ -149,3 +149,10 @@ Tous les contrôles passent et `npm audit` ne signale plus de vulnérabilité hi
 - Les routes sensibles membres, boards, tasks, tags et automations exigent maintenant un rôle minimal (`viewer`, `member`, `admin`).
 - Le reset token n'est plus exposé en production sauf `EXPOSE_RESET_TOKEN=true`.
 - Les commentaires de tâche côté frontend passent désormais par `POST /tasks/:taskId/comments` via `src/api/tasks.ts`, au lieu de dépendre d'un PATCH global de tâche.
+
+## Sprint suivant — UI Members/Tags
+
+- La page People permet maintenant d'inviter un membre, de modifier son rôle et de le retirer du workspace.
+- `AppDataProvider` expose `setUsers` pour synchroniser l'UI après mutations membres.
+- L'onglet Settings > Integrations inclut maintenant un gestionnaire de tags : liste, création, modification couleur/nom et suppression.
+- Les mutations utilisent les endpoints API existants en mode `VITE_USE_MOCKS=false` et conservent un fallback local en mode mock.
