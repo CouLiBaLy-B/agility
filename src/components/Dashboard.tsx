@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { Board } from '../data/boards';
-import { statusConfig, priorityConfig, users } from '../data/boards';
+import { statusConfig, priorityConfig } from '../data/boards';
+import { useUsers } from '../context/AppDataContext';
 import {
   CheckCircle2,
   Clock,
@@ -18,6 +19,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ boards }: DashboardProps) {
+  const users = useUsers();
   const allTasks = boards.flatMap((b) => b.tasks);
 
   const stats = useMemo(() => {
@@ -45,8 +47,9 @@ export function Dashboard({ boards }: DashboardProps) {
         user: users.find((u) => u.id === userId)!,
         count,
       }))
+      .filter((item) => Boolean(item.user))
       .sort((a, b) => b.count - a.count);
-  }, [allTasks]);
+  }, [allTasks, users]);
 
   const statusData = [
     { label: 'Done', count: stats.done, color: statusConfig.done.color, icon: CheckCircle2 },

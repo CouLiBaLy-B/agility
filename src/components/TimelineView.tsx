@@ -22,7 +22,7 @@ interface TimelineViewProps {
 }
 
 export function TimelineView({ board, onTaskClick, searchQuery }: TimelineViewProps) {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 3, 1));
+  const [currentMonth, setCurrentMonth] = useState(() => new Date());
 
   const filteredTasks = board.tasks.filter((task) =>
     task.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -63,7 +63,7 @@ export function TimelineView({ board, onTaskClick, searchQuery }: TimelineViewPr
             <ChevronLeft className="w-4 h-4 text-gray-600" />
           </button>
           <button
-            onClick={() => setCurrentMonth(new Date(2026, 3, 1))}
+            onClick={() => setCurrentMonth(new Date())}
             className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
             Today

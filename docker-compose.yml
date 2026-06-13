@@ -1,0 +1,35 @@
+services:
+  api:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev:api"
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://agility:agility_dev@postgres:5432/agility?schema=public
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agility
+      POSTGRES_USER: agility
+      POSTGRES_PASSWORD: agility_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:

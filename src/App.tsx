@@ -1,7 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Task, Board } from './data/boards';
-import { boards as initialBoards } from './data/boards';
+import { boards as initialBoards, users as initialUsers } from './data/boards';
+import { isApiEnabled } from './api/client';
+import { getMe, login } from './api/auth';
+import type { WorkspaceSummary } from './api/auth';
+import { createBoard as createBoardApi, createTask as createTaskApi, listBoards, updateTask as updateTaskApi } from './api/boards';
+import { unreadCount } from './api/notifications';
+import { listWorkspaceMembers } from './api/workspaces';
+import { AppDataProvider, type AppUser } from './context/AppDataContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BoardView } from './components/BoardView';
@@ -13,6 +20,14 @@ import { Inbox } from './components/Inbox';
 import { Automations } from './components/Automations';
 import { People } from './components/People';
 import { Settings } from './components/Settings';
+import { LoginScreen } from './components/LoginScreen';
+
+const DEFAULT_WORKSPACE: WorkspaceSummary = {
+  id: 'w1',
+  name: 'WorkSpace',
+  slug: 'workspace',
+  currentUserRole: 'admin',
+};
 
 export default function App() {
   const [boards, setBoards] = useState<Board[]>(initialBoards);
@@ -22,7 +37,84 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
+  const [hasUnread, setHasUnread] = useState(true);
+  const [users, setUsers] = useState<AppUser[]>(
+    initialUsers.map((user, index) => ({
+      ...user,
+      email: `${user.name.toLowerCase().replace(/\s+/g, '.')}@company.com`,
+      role: index === 0 ? 'admin' : 'member',
+    })),
+  );
+  const [currentUser, setCurrentUser] = useState<AppUser>(() => ({
+    ...initialUsers[0],
+    email: `${initialUsers[0].name.toLowerCase().replace(/\s+/g, '.')}@company.com`,
+    role: 'admin',
+  }));
+  const [workspace, setWorkspace] = useState<WorkspaceSummary>(DEFAULT_WORKSPACE);
+  const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>(
+    () => (isApiEnabled() ? 'checking' : 'authenticated'),
+  );
+  const [authError, setAuthError] = useState<string | null>(null);
 
+  const loadRemoteData = useCallback(async () => {
+    const session = await getMe();
+    const selectedWorkspace = session.workspaces[0] ?? DEFAULT_WORKSPACE;
+    const [remoteBoards, unread, remoteMembers] = await Promise.all([
+      listBoards(selectedWorkspace.id),
+      unreadCount(),
+      listWorkspaceMembers(selectedWorkspace.id),
+    ]);
+    setCurrentUser(session.user);
+    setWorkspace(selectedWorkspace);
+    setUsers(remoteMembers);
+    setBoards(remoteBoards);
+    setActiveBoardId(remoteBoards[0]?.id ?? null);
+    setHasUnread(unread.count > 0);
+  }, []);
+
+  useEffect(() => {
+    if (!isApiEnabled()) return;
+
+    if (!localStorage.getItem('agility.accessToken')) {
+      setAuthStatus('unauthenticated');
+      return;
+    }
+
+    let cancelled = false;
+    async function bootstrap() {
+      try {
+        await loadRemoteData();
+        if (!cancelled) setAuthStatus('authenticated');
+      } catch (error) {
+        console.warn('Existing API session is not valid.', error);
+        localStorage.removeItem('agility.accessToken');
+        if (!cancelled) setAuthStatus('unauthenticated');
+      }
+    }
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadRemoteData]);
+
+  const handleLogin = useCallback(
+    async (email: string, password: string) => {
+      setAuthStatus('checking');
+      setAuthError(null);
+      try {
+        await login(email, password);
+        await loadRemoteData();
+        setAuthStatus('authenticated');
+      } catch (error) {
+        console.warn('Login failed.', error);
+        localStorage.removeItem('agility.accessToken');
+        setAuthError('Unable to sign in. Check the API status and your credentials.');
+        setAuthStatus('unauthenticated');
+      }
+    },
+    [loadRemoteData],
+  );
 
   const activeBoard = activeBoardId
     ? boards.find((b) => b.id === activeBoardId) || null
@@ -42,15 +134,27 @@ export default function App() {
   }, []);
 
   const handleCreateBoard = useCallback(() => {
-    const newBoard: Board = {
+    const fallbackBoard: Board = {
       id: `b${Date.now()}`,
       name: 'New Board',
       icon: 'folder',
       color: '#00C875',
-      tasks: []
+      tasks: [],
     };
-    setBoards(prev => [...prev, newBoard]);
-    setActiveBoardId(newBoard.id);
+
+    async function createBoard() {
+      const newBoard = isApiEnabled()
+        ? await createBoardApi({ name: fallbackBoard.name, icon: fallbackBoard.icon, color: fallbackBoard.color })
+        : fallbackBoard;
+      setBoards((prev) => [...prev, newBoard]);
+      setActiveBoardId(newBoard.id);
+    }
+
+    void createBoard().catch((error) => {
+      console.warn('Board creation failed on API, using local fallback.', error);
+      setBoards((prev) => [...prev, fallbackBoard]);
+      setActiveBoardId(fallbackBoard.id);
+    });
   }, []);
 
   const handleUpdateTask = useCallback((updatedTask: Task) => {
@@ -65,11 +169,17 @@ export default function App() {
     if (selectedTask?.id === updatedTask.id) {
       setSelectedTask(updatedTask);
     }
+
+    if (isApiEnabled()) {
+      void updateTaskApi(updatedTask).catch((error) => {
+        console.warn('Task update failed on API; optimistic UI kept.', error);
+      });
+    }
   }, [selectedTask]);
 
   const handleAddTask = useCallback(() => {
     if (!activeBoard) return;
-    const newTask: Task = {
+    const fallbackTask: Task = {
       id: `t${Date.now()}`,
       title: 'New Task',
       status: 'not_started',
@@ -82,14 +192,30 @@ export default function App() {
       subtasks: [],
       comments: [],
     };
-    setBoards((prev) =>
-      prev.map((board) =>
-        board.id === activeBoard.id
-          ? { ...board, tasks: [...board.tasks, newTask] }
-          : board
-      )
-    );
-    setSelectedTask(newTask);
+
+    async function addTask() {
+      const newTask = isApiEnabled() ? await createTaskApi(activeBoard!.id, fallbackTask) : fallbackTask;
+      setBoards((prev) =>
+        prev.map((board) =>
+          board.id === activeBoard!.id
+            ? { ...board, tasks: [...board.tasks, newTask] }
+            : board
+        )
+      );
+      setSelectedTask(newTask);
+    }
+
+    void addTask().catch((error) => {
+      console.warn('Task creation failed on API, using local fallback.', error);
+      setBoards((prev) =>
+        prev.map((board) =>
+          board.id === activeBoard.id
+            ? { ...board, tasks: [...board.tasks, fallbackTask] }
+            : board
+        )
+      );
+      setSelectedTask(fallbackTask);
+    });
   }, [activeBoard]);
 
   const renderContent = () => {
@@ -153,8 +279,19 @@ export default function App() {
     if (task) setSelectedTask(task);
   };
 
+  if (isApiEnabled() && authStatus !== 'authenticated') {
+    return (
+      <LoginScreen
+        onLogin={handleLogin}
+        isLoading={authStatus === 'checking'}
+        error={authError}
+      />
+    );
+  }
+
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <AppDataProvider value={{ users, currentUser, setCurrentUser, workspace }}>
+      <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar
         boards={boards}
         activeBoardId={activeBoardId}
@@ -176,7 +313,7 @@ export default function App() {
           onSearchChange={setSearchQuery}
           onAddTask={handleAddTask}
           onInboxToggle={() => setIsInboxOpen(!isInboxOpen)}
-          hasUnread={true}
+          hasUnread={hasUnread}
         />
 
         <main className="flex-1 overflow-auto p-6">
@@ -207,6 +344,7 @@ export default function App() {
           onUpdate={handleUpdateTask}
         />
       )}
-    </div>
+      </div>
+    </AppDataProvider>
   );
 }

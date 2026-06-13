@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkspaceRole {
+  owner
+  admin
+  member
+  viewer
+}
+
+enum TaskStatus {
+  done
+  working
+  stuck
+  not_started
+}
+
+enum TaskPriority {
+  high
+  medium
+  low
+}
+
+enum NotificationType {
+  mention
+  status_change
+  deadline
+}
+
+model User {
+  id           String            @id @default(uuid())
+  email        String            @unique
+  firstName    String
+  lastName     String
+  displayName  String
+  avatarUrl    String?
+  initials     String
+  color        String
+  passwordHash String?
+  memberships  WorkspaceMember[]
+  assignments  TaskAssignee[]
+  comments     Comment[]
+  notifications Notification[]
+  preferences  UserPreference?
+  auditLogs     AuditLog[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model UserPreference {
+  userId             String  @id
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(true)
+  theme              String  @default("system")
+}
+
+model Workspace {
+  id          String            @id @default(uuid())
+  name        String
+  slug        String            @unique
+  members     WorkspaceMember[]
+  boards      Board[]
+  tags        Tag[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(member)
+  joinedAt    DateTime      @default(now())
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model Board {
+  id          String           @id @default(uuid())
+  workspaceId String
+  name        String
+  icon        String           @default("folder")
+  color       String           @default("#00C875")
+  position    Int              @default(0)
+  archivedAt  DateTime?
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  automations AutomationRule[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([workspaceId, archivedAt])
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  boardId     String
+  title       String
+  description String       @default("")
+  status      TaskStatus   @default(not_started)
+  priority    TaskPriority @default(medium)
+  startDate   DateTime?    @db.Date
+  dueDate     DateTime?    @db.Date
+  position    Int          @default(0)
+  archivedAt  DateTime?
+  board       Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  assignees   TaskAssignee[]
+  subtasks    Subtask[]
+  comments    Comment[]
+  tags        TaskTag[]
+  notifications Notification[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([boardId, status])
+  @@index([dueDate])
+}
+
+model TaskAssignee {
+  taskId String
+  userId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@index([userId])
+}
+
+model Subtask {
+  id        String   @id @default(uuid())
+  taskId    String
+  title     String
+  completed Boolean  @default(false)
+  position  Int      @default(0)
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  taskId    String
+  userId    String
+  text      String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId, createdAt])
+  @@index([userId])
+}
+
+model Tag {
+  id          String    @id @default(uuid())
+  workspaceId String
+  name        String
+  color       String    @default("#C4C4C4")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       TaskTag[]
+
+  @@unique([workspaceId, name])
+}
+
+model TaskTag {
+  taskId String
+  tagId  String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+  @@index([tagId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  taskId    String?
+  type      NotificationType
+  text      String
+  readAt    DateTime?
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task      Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt, createdAt])
+}
+
+model AutomationRule {
+  id          String   @id @default(uuid())
+  boardId     String
+  name        String
+  active      Boolean  @default(false)
+  trigger     Json
+  conditions  Json?
+  actions     Json
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([boardId, active])
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  workspaceId String
+  actorId     String?
+  action      String
+  entityType  String
+  entityId    String
+  metadata    Json?
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor       User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([actorId])
+}

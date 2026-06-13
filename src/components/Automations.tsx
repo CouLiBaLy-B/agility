@@ -1,15 +1,24 @@
 import { Zap, ArrowRight, ToggleLeft, ToggleRight, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useCurrentUser } from '../context/AppDataContext';
 
-const recipes = [
-  { id: 1, text: 'When status changes to "Done", move to next group', active: true },
-  { id: 2, text: 'When deadline is approaching, notify the owner', active: true },
-  { id: 3, text: 'Every Monday, create a recurring task for Weekly Sync', active: false },
-  { id: 4, text: 'When a new task is created, assign Sarah Chen', active: false },
-];
+function buildRecipes(currentUserName: string) {
+  return [
+    { id: 1, text: 'When status changes to "Done", move to next group', active: true },
+    { id: 2, text: 'When deadline is approaching, notify the owner', active: true },
+    { id: 3, text: 'Every Monday, create a recurring task for Weekly Sync', active: false },
+    { id: 4, text: `When a new task is created, assign ${currentUserName}`, active: false },
+  ];
+}
 
 export function Automations() {
+  const currentUser = useCurrentUser();
+  const recipes = useMemo(() => buildRecipes(currentUser.name), [currentUser.name]);
   const [activeRecipes, setActiveRecipes] = useState(recipes);
+
+  useEffect(() => {
+    setActiveRecipes(recipes);
+  }, [recipes]);
 
   const toggle = (id: number) => {
     setActiveRecipes(prev => prev.map(r => r.id === id ? { ...r, active: !r.active } : r));

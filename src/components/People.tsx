@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import type { Board } from '../data/boards';
-import { users } from '../data/boards';
+import { useUsers } from '../context/AppDataContext';
 
 interface PeopleProps {
   boards: Board[];
 }
 
 export function People({ boards }: PeopleProps) {
+  const users = useUsers();
+
   const userStats = useMemo(() => {
     const stats: Record<string, { assigned: number; completed: number; overdue: number; upcoming: number }> = {};
     
@@ -43,7 +45,7 @@ export function People({ boards }: PeopleProps) {
       ...user,
       ...stats[user.id],
     }));
-  }, [boards]);
+  }, [boards, users]);
 
   return (
     <div className="space-y-6">
@@ -67,7 +69,7 @@ export function People({ boards }: PeopleProps) {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-800">{user.name}</h3>
-                <p className="text-sm text-gray-400">{user.name.toLowerCase()}@company.com</p>
+                <p className="text-sm text-gray-400">{user.email}</p>
               </div>
             </div>
 

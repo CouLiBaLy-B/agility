@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { X, MessageSquare, CheckSquare, Calendar, Tag, User, Flag, AlignLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Task } from '../data/boards';
-import { users, statusConfig, priorityConfig } from '../data/boards';
+import { statusConfig, priorityConfig } from '../data/boards';
+import { useCurrentUser, useUsers } from '../context/AppDataContext';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { Avatar } from './Avatar';
@@ -17,6 +18,8 @@ interface TaskModalProps {
 export function TaskModal({ task, onClose, onUpdate }: TaskModalProps) {
   const [localTask, setLocalTask] = useState<Task | null>(task);
   const [newComment, setNewComment] = useState('');
+  const users = useUsers();
+  const currentUser = useCurrentUser();
 
   if (!task || !localTask) return null;
 
@@ -51,7 +54,7 @@ export function TaskModal({ task, onClose, onUpdate }: TaskModalProps) {
         ...localTask.comments,
         {
           id: `c${Date.now()}`,
-          userId: 'u1',
+          userId: currentUser.id,
           text: newComment,
           date: format(new Date(), 'yyyy-MM-dd'),
         },
@@ -221,7 +224,7 @@ export function TaskModal({ task, onClose, onUpdate }: TaskModalProps) {
                 })}
               </div>
               <div className="flex gap-2">
-                <Avatar userId="u1" size="sm" />
+                <Avatar userId={currentUser.id} size="sm" />
                 <div className="flex-1 flex gap-2">
                   <input
                     type="text"

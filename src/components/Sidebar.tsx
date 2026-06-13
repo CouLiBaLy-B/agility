@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Board } from '../data/boards';
+import { useAppData } from '../context/AppDataContext';
 
 interface SidebarProps {
   boards: Board[];
@@ -49,6 +50,8 @@ export function Sidebar({
 }: SidebarProps) {
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set(['b1']));
   const [, setHoveredItem] = useState<string | null>(null);
+  const { currentUser, workspace } = useAppData();
+  const favoriteBoard = boards[0];
 
   const toggleBoard = (boardId: string) => {
     setExpandedBoards((prev) => {
@@ -110,8 +113,8 @@ export function Sidebar({
             <span className="text-white font-bold text-sm">W</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-800 truncate">WorkSpace</p>
-            <p className="text-xs text-gray-400">Product Team</p>
+            <p className="text-sm font-semibold text-gray-800 truncate">{workspace?.name ?? 'WorkSpace'}</p>
+            <p className="text-xs text-gray-400">{workspace?.slug ?? 'workspace'}</p>
           </div>
           <button
             onClick={onToggleCollapse}
@@ -143,17 +146,19 @@ export function Sidebar({
               Favorites
             </span>
           </div>
-          <button
-            onClick={() => onBoardSelect('b1')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-              activeBoardId === 'b1'
-                ? 'bg-blue-50 text-blue-600 font-medium'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <Star className="w-4 h-4 text-yellow-400" />
-            Product Launch Q2
-          </button>
+          {favoriteBoard && (
+            <button
+              onClick={() => onBoardSelect(favoriteBoard.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                activeBoardId === favoriteBoard.id
+                  ? 'bg-blue-50 text-blue-600 font-medium'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Star className="w-4 h-4 text-yellow-400" />
+              {favoriteBoard.name}
+            </button>
+          )}
         </div>
 
         <div className="px-3 mt-4">
@@ -258,11 +263,11 @@ export function Sidebar({
       <div className="p-3 border-t border-gray-100">
         <div className="flex items-center gap-2 px-3 py-2">
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-xs font-semibold">
-            SC
+            {currentUser.initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-700 truncate">Sarah Chen</p>
-            <p className="text-xs text-gray-400">Admin</p>
+            <p className="text-sm font-medium text-gray-700 truncate">{currentUser.name}</p>
+            <p className="text-xs text-gray-400 capitalize">{currentUser.role ?? workspace?.currentUserRole ?? 'member'}</p>
           </div>
         </div>
       </div>

@@ -1,8 +1,13 @@
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Bell, Clock, CheckCircle } from 'lucide-react';
-import { notifications, users } from '../data/boards';
+import { notifications as fallbackNotifications } from '../data/boards';
+import type { Notification } from '../data/boards';
 import { Avatar } from './Avatar';
 import { format, parseISO } from 'date-fns';
+import { isApiEnabled } from '../api/client';
+import { listNotifications } from '../api/notifications';
+import { useUsers } from '../context/AppDataContext';
 
 interface InboxProps {
   isOpen: boolean;
@@ -11,6 +16,28 @@ interface InboxProps {
 }
 
 export function Inbox({ isOpen, onClose, onTaskClick }: InboxProps) {
+  const users = useUsers();
+  const [notifications, setNotifications] = useState<Notification[]>(fallbackNotifications);
+
+  useEffect(() => {
+    if (!isOpen || !isApiEnabled()) return;
+
+    let cancelled = false;
+    async function loadNotifications() {
+      try {
+        const remoteNotifications = await listNotifications();
+        if (!cancelled) setNotifications(remoteNotifications);
+      } catch (error) {
+        console.warn('Unable to load notifications from API.', error);
+      }
+    }
+
+    void loadNotifications();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -27,7 +54,11 @@ export function Inbox({ isOpen, onClose, onTaskClick }: InboxProps) {
                 <Bell className="w-4 h-4 text-blue-500" />
                 <h3 className="font-bold text-gray-800">Inbox</h3>
               </div>
-              <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
+              <button
+                onClick={onClose}
+                aria-label="Close inbox"
+                className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+              >
                 <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
@@ -36,7 +67,7 @@ export function Inbox({ isOpen, onClose, onTaskClick }: InboxProps) {
               {notifications.length > 0 ? (
                 <div className="divide-y divide-gray-50">
                   {notifications.map((notif) => {
-                    const user = users.find(u => u.id === notif.userId);
+                    const user = users.find((u) => u.id === notif.userId);
                     return (
                       <div
                         key={notif.id}
@@ -50,7 +81,7 @@ export function Inbox({ isOpen, onClose, onTaskClick }: InboxProps) {
                           <Avatar userId={notif.userId} size="sm" />
                           <div className="flex-1">
                             <p className="text-sm text-gray-800">
-                              <span className="font-bold">{user?.name}</span> {notif.text}
+                              <span className="font-bold">{user?.name ?? 'Unknown user'}</span> {notif.text}
                             </p>
                             <div className="flex items-center gap-3 mt-2">
                               <span className="text-[10px] text-gray-400 flex items-center gap-1">
@@ -62,9 +93,7 @@ export function Inbox({ isOpen, onClose, onTaskClick }: InboxProps) {
                               )}
                             </div>
                           </div>
-                          {!notif.isRead && (
-                            <div className="w-2 h-2 bg-blue-500 rounded-full mt-1" />
-                          )}
+                          {!notif.isRead && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1" />}
                         </div>
                       </div>
                     );
