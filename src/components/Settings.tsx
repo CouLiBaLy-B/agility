@@ -7,7 +7,11 @@ import { getPreferences, updatePreferences, type UserPreferences } from '../api/
 import { updateMe } from '../api/users';
 import { createTag, deleteTag, listTags, updateTag, type Tag } from '../api/tags';
 
-export function Settings() {
+interface SettingsProps {
+  onLogout?: () => void;
+}
+
+export function Settings({ onLogout }: SettingsProps) {
   const [activeTab, setActiveTab] = useState('profile');
   const { currentUser, setCurrentUser, workspace } = useAppData();
   const [initialFirstName = currentUser.name, initialLastName = ''] = currentUser.name.split(' ');
@@ -149,7 +153,10 @@ export function Settings() {
                 {tab.label}
               </button>
             ))}
-            <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors mt-4">
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors mt-4"
+            >
               <LogOut className="w-4 h-4" />
               Log Out
             </button>

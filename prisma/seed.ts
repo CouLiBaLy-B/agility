@@ -30,6 +30,7 @@ async function main() {
   await prisma.tag.deleteMany();
   await prisma.board.deleteMany();
   await prisma.workspaceMember.deleteMany();
+  await prisma.refreshToken.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.userPreference.deleteMany();
   await prisma.user.deleteMany();

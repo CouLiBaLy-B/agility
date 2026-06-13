@@ -156,3 +156,16 @@ Tous les contrôles passent et `npm audit` ne signale plus de vulnérabilité hi
 - `AppDataProvider` expose `setUsers` pour synchroniser l'UI après mutations membres.
 - L'onglet Settings > Integrations inclut maintenant un gestionnaire de tags : liste, création, modification couleur/nom et suppression.
 - Les mutations utilisent les endpoints API existants en mode `VITE_USE_MOCKS=false` et conservent un fallback local en mode mock.
+
+## Sprint auth/session — refresh token HttpOnly
+
+- Ajout du modèle Prisma `RefreshToken` et migration `000003_refresh_tokens`.
+- Ajout de la rotation de refresh token dans les stores `memory` et `prisma`.
+- Ajout de `POST /auth/refresh`.
+- `POST /auth/login`, `/auth/register` et `/auth/reset-password` déposent maintenant un cookie refresh token HttpOnly.
+- `POST /auth/logout` révoque le refresh token et nettoie le cookie.
+- CORS API accepte désormais les credentials.
+- Le client API utilise `credentials: 'include'` et tente un refresh automatique sur réponse 401.
+- Le bootstrap frontend peut restaurer une session via cookie refresh même si l'access token n'est plus en localStorage.
+- Le bouton Log Out dans Settings appelle maintenant le backend.
+- Tests API ajoutés pour refresh/logout.

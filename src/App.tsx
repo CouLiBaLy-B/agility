@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { Task, Board } from './data/boards';
 import { boards as initialBoards, users as initialUsers } from './data/boards';
 import { isApiEnabled } from './api/client';
-import { forgotPassword, getMe, login, register, resetPassword } from './api/auth';
+import { forgotPassword, getMe, login, logout, refreshSession, register, resetPassword } from './api/auth';
 import type { WorkspaceSummary } from './api/auth';
 import { createBoard as createBoardApi, createTask as createTaskApi, listBoards, updateTask as updateTaskApi } from './api/boards';
 import { unreadCount } from './api/notifications';
@@ -76,14 +76,12 @@ export default function App() {
   useEffect(() => {
     if (!isApiEnabled()) return;
 
-    if (!localStorage.getItem('agility.accessToken')) {
-      setAuthStatus('unauthenticated');
-      return;
-    }
-
     let cancelled = false;
     async function bootstrap() {
       try {
+        if (!localStorage.getItem('agility.accessToken')) {
+          await refreshSession();
+        }
         await loadRemoteData();
         if (!cancelled) setAuthStatus('authenticated');
       } catch (error) {
@@ -166,6 +164,17 @@ export default function App() {
     },
     [loadRemoteData],
   );
+
+  const handleLogout = useCallback(async () => {
+    try {
+      if (isApiEnabled()) await logout();
+    } catch (error) {
+      console.warn('Logout failed.', error);
+    } finally {
+      localStorage.removeItem('agility.accessToken');
+      setAuthStatus(isApiEnabled() ? 'unauthenticated' : 'authenticated');
+    }
+  }, []);
 
   const activeBoard = activeBoardId
     ? boards.find((b) => b.id === activeBoardId) || null
@@ -287,7 +296,7 @@ export default function App() {
       case 'people':
         return <People boards={boards} />;
       case 'settings':
-        return <Settings />;
+        return <Settings onLogout={handleLogout} />;
       case 'automations':
         return activeBoard ? <Automations boardId={activeBoard.id} /> : <Dashboard boards={boards} />;
     }

@@ -20,6 +20,22 @@ describe('Agility API', () => {
     expect(response.body).toEqual({ status: 'ok', service: 'agility-api' });
   });
 
+  it('authenticates, refreshes and logs out with refresh cookie', async () => {
+    const agent = request.agent(app);
+    const loginResponse = await agent
+      .post('/auth/login')
+      .send({ email: 'sarah.chen@company.com', password: 'demo-password' })
+      .expect(200);
+
+    expect(loginResponse.body.accessToken).toEqual(expect.any(String));
+
+    const refreshResponse = await agent.post('/auth/refresh').expect(200);
+    expect(refreshResponse.body.accessToken).toEqual(expect.any(String));
+
+    await agent.post('/auth/logout').expect(204);
+    await agent.post('/auth/refresh').expect(401);
+  });
+
   it('authenticates and returns current user', async () => {
     const token = await login();
     const response = await request(app)

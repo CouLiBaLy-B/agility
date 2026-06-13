@@ -175,6 +175,38 @@ export class PrismaStore {
     return toApiUser(user);
   }
 
+  async createRefreshToken(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) return null;
+    const refreshToken = randomBytes(48).toString('hex');
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+    await this.prisma.refreshToken.create({
+      data: { userId, tokenHash: hashToken(refreshToken), expiresAt },
+    });
+    return { refreshToken, expiresAt: expiresAt.toISOString() };
+  }
+
+  async rotateRefreshToken(refreshToken: string) {
+    const tokenHash = hashToken(refreshToken);
+    const entry = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: { user: { include: { memberships: true } } },
+    });
+    if (!entry || entry.revokedAt || entry.expiresAt.getTime() < Date.now()) return null;
+    await this.prisma.refreshToken.update({ where: { id: entry.id }, data: { revokedAt: new Date() } });
+    const next = await this.createRefreshToken(entry.userId);
+    if (!next) return null;
+    return { user: toApiUser(entry.user), ...next };
+  }
+
+  async revokeRefreshToken(refreshToken: string) {
+    const result = await this.prisma.refreshToken.updateMany({
+      where: { tokenHash: hashToken(refreshToken), revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return { revoked: result.count > 0 };
+  }
+
   async updateCurrentUser(userId: string, input: Partial<Pick<ApiUser, 'email' | 'name'>>) {
     const displayName = input.name?.trim();
     const [firstName = '', ...rest] = displayName?.split(' ') ?? [];

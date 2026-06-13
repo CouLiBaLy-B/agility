@@ -235,3 +235,16 @@ Corrections implémentées :
 - Validations relancées : typecheck, lint, tests, build, audit high OK.
 
 Reste : déploiement backend public, refresh tokens HttpOnly, tests Prisma/PostgreSQL réels, React Router pour pages auth dédiées, moteur d'automations réel.
+
+## Addendum — Sprint auth/session
+
+Corrections implémentées :
+
+- Rotation de refresh token avec cookie HttpOnly.
+- Endpoint `/auth/refresh` ajouté.
+- Endpoint `/auth/logout` révoque les refresh tokens.
+- Client API configuré avec `credentials: include` et retry refresh sur 401.
+- Restauration de session frontend via refresh cookie.
+- Tests API refresh/logout ajoutés.
+
+Reste à renforcer avant production : revue CSRF complète, politique password, email provider reset password, déploiement backend public, tests Prisma/PostgreSQL réels et CI GitHub Actions.

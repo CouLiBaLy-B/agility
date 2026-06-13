@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { boards as seedBoards, users as seedUsers, notifications as seedNotifications } from '../../../src/data/boards';
 import type { Board, Notification, Task, User } from '../../../src/data/boards';
 import { hashPassword, verifyPassword } from './passwords';
@@ -58,6 +58,10 @@ function toEmail(name: string) {
   return `${name.toLowerCase().replace(/\s+/g, '.')}@company.com`;
 }
 
+function hashToken(token: string) {
+  return createHash('sha256').update(token).digest('hex');
+}
+
 export class InMemoryStore {
   private readonly workspace: Workspace = {
     id: 'w1',
@@ -75,6 +79,7 @@ export class InMemoryStore {
     this.users.map((user) => [user.id, hashPassword('demo-password')]),
   );
   private resetTokens = new Map<string, { userId: string; expiresAt: Date }>();
+  private refreshTokens = new Map<string, { userId: string; expiresAt: Date; revokedAt?: Date }>();
 
   private boards: Board[] = clone(seedBoards);
   private notifications: Notification[] = clone(seedNotifications);
@@ -176,6 +181,32 @@ export class InMemoryStore {
     this.passwordHashes[user.id] = hashPassword(input.password);
     this.resetTokens.delete(input.token);
     return user;
+  }
+
+  createRefreshToken(userId: string) {
+    const user = this.users.find((candidate) => candidate.id === userId);
+    if (!user) return null;
+    const refreshToken = randomBytes(48).toString('hex');
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+    this.refreshTokens.set(hashToken(refreshToken), { userId, expiresAt });
+    return { refreshToken, expiresAt: expiresAt.toISOString() };
+  }
+
+  rotateRefreshToken(refreshToken: string) {
+    const tokenHash = hashToken(refreshToken);
+    const entry = this.refreshTokens.get(tokenHash);
+    if (!entry || entry.revokedAt || entry.expiresAt.getTime() < Date.now()) return null;
+    entry.revokedAt = new Date();
+    const user = this.users.find((candidate) => candidate.id === entry.userId);
+    const next = this.createRefreshToken(entry.userId);
+    if (!user || !next) return null;
+    return { user, ...next };
+  }
+
+  revokeRefreshToken(refreshToken: string) {
+    const entry = this.refreshTokens.get(hashToken(refreshToken));
+    if (entry) entry.revokedAt = new Date();
+    return { revoked: Boolean(entry) };
   }
 
   listWorkspaces(userId?: string) {

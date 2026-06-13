@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, refreshSessionToken } from './client';
 import type { User } from '../data/boards';
 
 export interface ApiUser extends User {
@@ -66,6 +66,16 @@ export async function resetPassword(token: string, password: string) {
     body: JSON.stringify({ token, password }),
   });
   return persistSession(session);
+}
+
+export async function refreshSession() {
+  const refreshed = await refreshSessionToken();
+  if (!refreshed) throw new Error('Unable to refresh session');
+}
+
+export async function logout() {
+  await api<void>('/auth/logout', { method: 'POST' }, false);
+  localStorage.removeItem('agility.accessToken');
 }
 
 export async function getMe() {

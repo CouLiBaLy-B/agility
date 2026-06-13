@@ -19,7 +19,7 @@ Agility is a project and task management application with a React frontend and a
 
 ### Backend API
 
-- JWT authentication MVP with register, forgot password, and reset password flows.
+- JWT authentication MVP with register, forgot password, reset password, and HttpOnly refresh-token rotation.
 - Workspaces and members.
 - Boards and tasks.
 - Subtasks and comments.
@@ -204,6 +204,7 @@ POST /auth/login
 POST /auth/register
 POST /auth/forgot-password
 POST /auth/reset-password
+POST /auth/refresh
 POST /auth/logout
 GET  /auth/me
 ```
@@ -300,7 +301,7 @@ Current test coverage includes:
 
 - No secrets should be committed. Use `.env` locally and secure environment variables in deployment.
 - `JWT_SECRET` must be changed in production.
-- The current auth is an MVP. Before production, add password hashing, refresh-token rotation, RBAC guards per workspace, stricter CORS, and deployment-grade secret management.
+- The current auth is an MVP. It includes password hashing, RBAC guards and refresh-token rotation, but production should still add stricter password policy, email delivery for reset links, CSRF review, monitoring, and deployment-grade secret management.
 - Run `npm audit` and dependency updates regularly.
 
 ## Deployment notes
