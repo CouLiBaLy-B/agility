@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, signAccessToken } from '../middleware/auth';
+import { clearCsrfToken, issueCsrfToken, requireCsrf } from '../middleware/csrf';
 import { dataStore } from '../services/data-store';
 import type { ApiUser } from '../services/store';
 
@@ -47,10 +48,12 @@ function clearRefreshCookie(res: Response) {
 async function issueSession(res: Response, user: ApiUser) {
   const refresh = await dataStore.createRefreshToken(user.id);
   if (refresh) setRefreshCookie(res, refresh.refreshToken);
+  const csrfToken = issueCsrfToken(res);
   return {
     accessToken: signAccessToken(user.id),
     tokenType: 'Bearer' as const,
     expiresIn: 900,
+    csrfToken,
     user,
   };
 }
@@ -89,7 +92,7 @@ authRouter.post('/reset-password', async (req, res) => {
   return res.json(await issueSession(res, user));
 });
 
-authRouter.post('/refresh', async (req, res) => {
+authRouter.post('/refresh', requireCsrf, async (req, res) => {
   const refreshToken = req.cookies?.[REFRESH_COOKIE];
   if (!refreshToken) return res.status(401).json({ error: 'missing_refresh_token' });
   const rotated = await dataStore.rotateRefreshToken(refreshToken);
@@ -98,18 +101,21 @@ authRouter.post('/refresh', async (req, res) => {
     return res.status(401).json({ error: 'invalid_refresh_token' });
   }
   setRefreshCookie(res, rotated.refreshToken);
+  const csrfToken = issueCsrfToken(res);
   return res.json({
     accessToken: signAccessToken(rotated.user.id),
     tokenType: 'Bearer',
     expiresIn: 900,
+    csrfToken,
     user: rotated.user,
   });
 });
 
-authRouter.post('/logout', async (req, res) => {
+authRouter.post('/logout', requireCsrf, async (req, res) => {
   const refreshToken = req.cookies?.[REFRESH_COOKIE];
   if (refreshToken) await dataStore.revokeRefreshToken(refreshToken);
   clearRefreshCookie(res);
+  clearCsrfToken(res);
   return res.status(204).send();
 });
 

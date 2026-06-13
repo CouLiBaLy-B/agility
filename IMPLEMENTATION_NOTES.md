@@ -179,3 +179,10 @@ Tous les contrôles passent et `npm audit` ne signale plus de vulnérabilité hi
 - Ajout de `/health/ready` pour readiness API et vérification DB en mode Prisma.
 - Ajout de `npm run start:api`, `npm run db:deploy` et d'un `Dockerfile` API.
 - Les tests couvrent maintenant `/health/ready`.
+
+## Sprint sécurité CSRF
+
+- Ajout d'un token CSRF double-submit (`agility.csrfToken`) pour protéger les endpoints cookie-based `/auth/refresh` et `/auth/logout`.
+- Le backend émet et renouvelle le CSRF token à chaque session login/register/reset/refresh.
+- Le frontend lit le cookie CSRF non-HttpOnly et envoie `X-CSRF-Token` sur les mutations.
+- Tests API mis à jour : refresh sans CSRF est refusé, refresh/logout avec CSRF fonctionne.

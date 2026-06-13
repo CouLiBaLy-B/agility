@@ -1,8 +1,14 @@
-import request from 'supertest';
+import request, { type Response } from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../app';
 
 const app = createApp();
+
+function csrfFrom(response: Response) {
+  const cookies = response.headers['set-cookie'] as unknown as string[] | undefined;
+  const csrfCookie = cookies?.find((cookie) => cookie.startsWith('agility.csrfToken='));
+  return csrfCookie?.split(';')[0].split('=')[1];
+}
 
 async function login() {
   const response = await request(app)
@@ -33,12 +39,17 @@ describe('Agility API', () => {
       .expect(200);
 
     expect(loginResponse.body.accessToken).toEqual(expect.any(String));
+    const csrfToken = csrfFrom(loginResponse);
+    expect(csrfToken).toEqual(expect.any(String));
 
-    const refreshResponse = await agent.post('/auth/refresh').expect(200);
+    await agent.post('/auth/refresh').expect(403);
+
+    const refreshResponse = await agent.post('/auth/refresh').set('X-CSRF-Token', csrfToken!).expect(200);
     expect(refreshResponse.body.accessToken).toEqual(expect.any(String));
+    const nextCsrfToken = csrfFrom(refreshResponse) ?? csrfToken;
 
-    await agent.post('/auth/logout').expect(204);
-    await agent.post('/auth/refresh').expect(401);
+    await agent.post('/auth/logout').set('X-CSRF-Token', nextCsrfToken!).expect(204);
+    await agent.post('/auth/refresh').set('X-CSRF-Token', nextCsrfToken!).expect(403);
   });
 
   it('authenticates and returns current user', async () => {

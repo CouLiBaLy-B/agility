@@ -258,3 +258,12 @@ Corrections implémentées :
 - Ajout de `/health/ready` avec vérification DB lorsque `DATA_STORE=prisma`.
 - Ajout Dockerfile API, `start:api` et `db:deploy` pour déploiement.
 - Tests readiness ajoutés.
+
+## Addendum — Sprint sécurité CSRF
+
+Corrections implémentées :
+
+- Protection CSRF double-submit ajoutée pour les endpoints de session basés sur cookie.
+- `/auth/refresh` et `/auth/logout` exigent maintenant `X-CSRF-Token` correspondant au cookie `agility.csrfToken`.
+- Le client API envoie automatiquement le token CSRF sur les méthodes mutantes.
+- Tests API ajoutés pour vérifier le refus sans CSRF et le fonctionnement avec CSRF.
