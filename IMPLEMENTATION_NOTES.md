@@ -186,3 +186,12 @@ Tous les contrôles passent et `npm audit` ne signale plus de vulnérabilité hi
 - Le backend émet et renouvelle le CSRF token à chaque session login/register/reset/refresh.
 - Le frontend lit le cookie CSRF non-HttpOnly et envoie `X-CSRF-Token` sur les mutations.
 - Tests API mis à jour : refresh sans CSRF est refusé, refresh/logout avec CSRF fonctionne.
+
+## Sprint production Supabase/Vercel
+
+- Ajout de `api/index.ts` pour exposer l'application Express comme fonction serverless Vercel.
+- Ajout de `vercel.json` avec build Vite et rewrites API vers la fonction serverless.
+- Ajout de `.env.production.example` pour les variables Supabase/Vercel.
+- Ajout du workflow `.github/workflows/production.yml` : validation, migrations Prisma Supabase, build et déploiement Vercel.
+- Le client API utilise maintenant une URL relative par défaut, compatible avec les rewrites same-origin Vercel.
+- README complété avec la procédure Supabase + Vercel et la liste des secrets GitHub/Vercel.

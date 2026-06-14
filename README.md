@@ -308,18 +308,75 @@ Current test coverage includes:
 - The current auth is an MVP. It includes password hashing, RBAC guards and refresh-token rotation, but production should still add stricter password policy, email delivery for reset links, CSRF review, monitoring, and deployment-grade secret management.
 - Run `npm audit` and dependency updates regularly.
 
-## Deployment notes
+## Production deployment: Supabase + Vercel
 
-The repository includes a local `docker-compose.yml` with PostgreSQL and Redis. The API can run with either memory or Prisma store.
+The repository is prepared for production deployment with:
 
-A production deployment should add:
+- Supabase PostgreSQL for persistence.
+- Vercel for the Vite frontend and serverless Express API.
+- GitHub Actions workflow: `.github/workflows/production.yml`.
 
-- managed PostgreSQL,
-- managed Redis if automations/queues are expanded,
-- HTTPS termination,
-- CI/CD with a GitHub token that has `workflow` scope if workflows are versioned,
-- database migration strategy,
-- logs/metrics/healthchecks.
+### 1. Supabase
+
+Create a Supabase project and copy the PostgreSQL connection string. Use a direct or migration-safe connection string for CI migrations.
+
+Recommended GitHub repository secrets:
+
+```text
+SUPABASE_DATABASE_URL=postgresql://postgres:<password>@<host>:5432/postgres
+SUPABASE_DIRECT_URL=postgresql://postgres:<password>@<host>:5432/postgres
+```
+
+If you use Supabase pooler for runtime, configure the Vercel `DATABASE_URL` with the pooler URL and keep the direct URL in GitHub Actions for migrations.
+
+### 2. Vercel
+
+Create/import the project on Vercel and add these production environment variables in Vercel:
+
+```text
+NODE_ENV=production
+DATA_STORE=prisma
+DATABASE_URL=<supabase-runtime-or-pooler-url>
+JWT_SECRET=<long-random-secret>
+JWT_EXPIRES_IN=15m
+CORS_ORIGIN=https://<your-vercel-domain>
+EXPOSE_RESET_TOKEN=false
+VITE_USE_MOCKS=false
+VITE_API_URL=
+VITE_WORKSPACE_ID=w1
+```
+
+`VITE_API_URL` can be empty because `vercel.json` rewrites API routes to the same Vercel deployment.
+
+### 3. GitHub Actions secrets
+
+Add these repository secrets:
+
+```text
+VERCEL_TOKEN
+VERCEL_ORG_ID
+VERCEL_PROJECT_ID
+SUPABASE_DATABASE_URL
+SUPABASE_DIRECT_URL
+JWT_SECRET
+VITE_API_URL
+VITE_WORKSPACE_ID
+```
+
+The production workflow will:
+
+1. install dependencies,
+2. generate Prisma client,
+3. typecheck,
+4. lint,
+5. run tests,
+6. build frontend,
+7. run `prisma migrate deploy` against Supabase,
+8. build and deploy to Vercel production.
+
+### 4. API routing on Vercel
+
+`vercel.json` rewrites API paths such as `/auth/*`, `/workspaces/*`, `/tasks/*`, `/health`, `/docs`, and `/openapi.json` to the serverless Express app in `api/index.ts`.
 
 ## Additional documentation
 

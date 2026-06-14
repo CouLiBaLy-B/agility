@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "buildCommand": "npm run db:generate && npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm ci",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/auth/(.*)", "destination": "/api/index" },
+    { "source": "/workspaces/(.*)", "destination": "/api/index" },
+    { "source": "/boards/(.*)", "destination": "/api/index" },
+    { "source": "/tasks/(.*)", "destination": "/api/index" },
+    { "source": "/notifications/(.*)", "destination": "/api/index" },
+    { "source": "/notifications", "destination": "/api/index" },
+    { "source": "/users/(.*)", "destination": "/api/index" },
+    { "source": "/tags/(.*)", "destination": "/api/index" },
+    { "source": "/automations/(.*)", "destination": "/api/index" },
+    { "source": "/health", "destination": "/api/index" },
+    { "source": "/health/ready", "destination": "/api/index" },
+    { "source": "/openapi.json", "destination": "/api/index" },
+    { "source": "/docs", "destination": "/api/index" }
+  ]
+}

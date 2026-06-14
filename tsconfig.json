@@ -27,5 +27,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "server/src", "prisma", "vite.config.ts", "vitest.config.ts", "eslint.config.js"]
+  "include": ["src", "server/src", "api", "prisma", "vite.config.ts", "vitest.config.ts", "eslint.config.js"]
 }

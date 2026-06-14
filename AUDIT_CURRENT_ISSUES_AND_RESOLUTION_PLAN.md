@@ -267,3 +267,15 @@ Corrections implémentées :
 - `/auth/refresh` et `/auth/logout` exigent maintenant `X-CSRF-Token` correspondant au cookie `agility.csrfToken`.
 - Le client API envoie automatiquement le token CSRF sur les méthodes mutantes.
 - Tests API ajoutés pour vérifier le refus sans CSRF et le fonctionnement avec CSRF.
+
+## Addendum — Préparation production Supabase/Vercel
+
+Corrections implémentées :
+
+- API Express exportée comme fonction Vercel via `api/index.ts`.
+- `vercel.json` ajouté avec rewrites vers l'API serverless.
+- Workflow GitHub Actions de production ajouté pour typecheck/lint/test/build/audit/migrations Supabase/déploiement Vercel.
+- Exemple d'environnement production ajouté.
+- README mis à jour avec les secrets requis et la procédure Supabase + Vercel.
+
+À faire côté plateforme : créer le projet Supabase, créer le projet Vercel, renseigner les secrets GitHub et variables Vercel, puis vérifier le premier run CI/CD.

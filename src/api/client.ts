@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || '';
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false';
 const CSRF_COOKIE = 'agility.csrfToken';
 
