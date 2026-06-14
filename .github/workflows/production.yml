@@ -10,17 +10,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-migrate-deploy:
+  validate:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_SECRET: ci-jwt-secret-change-me-32-chars
       JWT_EXPIRES_IN: 15m
-      DATA_STORE: prisma
-      VITE_USE_MOCKS: 'false'
-      VITE_API_URL: ${{ secrets.VITE_API_URL }}
-      VITE_WORKSPACE_ID: ${{ secrets.VITE_WORKSPACE_ID || 'w1' }}
+      DATA_STORE: memory
+      VITE_USE_MOCKS: 'true'
+      VITE_API_URL: ''
+      VITE_WORKSPACE_ID: w1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,6 +33,8 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma client
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: npm run db:generate
 
       - name: Typecheck
@@ -52,23 +52,75 @@ jobs:
       - name: Audit high vulnerabilities
         run: npm audit --audit-level=high
 
+  deploy:
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
+    env:
+      DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+      DATA_STORE: prisma
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_EXPIRES_IN: 15m
+      VITE_USE_MOCKS: 'false'
+      VITE_API_URL: ${{ secrets.VITE_API_URL }}
+      VITE_WORKSPACE_ID: ${{ secrets.VITE_WORKSPACE_ID }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Check required deployment secrets
+        id: secrets
+        shell: bash
+        run: |
+          missing=0
+          for name in DATABASE_URL JWT_SECRET VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required secret/env: $name"
+              missing=1
+            fi
+          done
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "Missing required secret/env: VERCEL_TOKEN"
+            missing=1
+          fi
+          if [ "$missing" -eq 1 ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Deployment secrets are not fully configured yet. Validation succeeded; deploy is skipped."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.secrets.outputs.ready == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: steps.secrets.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.secrets.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Generate Prisma client
+        if: steps.secrets.outputs.ready == 'true'
+        run: npm run db:generate
+
       - name: Deploy Prisma migrations to Supabase
+        if: steps.secrets.outputs.ready == 'true'
         run: npm run db:deploy
 
       - name: Pull Vercel environment
+        if: steps.secrets.outputs.ready == 'true'
         run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build Vercel artifact
+        if: steps.secrets.outputs.ready == 'true'
         run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deploy to Vercel production
+        if: steps.secrets.outputs.ready == 'true'
         run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

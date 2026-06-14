@@ -195,3 +195,10 @@ Tous les contrôles passent et `npm audit` ne signale plus de vulnérabilité hi
 - Ajout du workflow `.github/workflows/production.yml` : validation, migrations Prisma Supabase, build et déploiement Vercel.
 - Le client API utilise maintenant une URL relative par défaut, compatible avec les rewrites same-origin Vercel.
 - README complété avec la procédure Supabase + Vercel et la liste des secrets GitHub/Vercel.
+
+## Correction CI production
+
+- Le workflow Production est séparé en deux jobs : `validate` et `deploy`.
+- Le job `validate` utilise un `JWT_SECRET` CI sûr et `DATA_STORE=memory`, afin de ne plus échouer si les secrets de production ne sont pas encore renseignés.
+- Le job `deploy` vérifie la présence des secrets Supabase/Vercel et saute le déploiement avec un message explicite si la configuration n'est pas complète.
+- Cela permet d'avoir une CI verte avant la configuration finale des secrets, tout en conservant le déploiement automatique dès que les secrets sont présents.
